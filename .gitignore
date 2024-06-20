@@ -1,0 +1,35 @@
+# Environment variables file
+.env
+
+# Virtual environment
+venv/
+
+# macOS
+.DS_Store
+
+# Editor files
+.vscode/
+*.swp
+*~
+
+# Unit test / coverage reports
+htmlcov/
+
+# Dependency directories
+lib/
+libs/
+lib64/
+local/
+target/
+
+# Other
+*.bak
+*.retry
+*.ini
+*.pid
+
+# Ignore flask's development server
+*.pyc
+
+# pycache
+__pycache__

@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  api_service:
+    build:
+      context: .
+      dockerfile: api_service/Dockerfile.local
+    container_name: api_service_container
+    image: api_service
+    networks:
+      - microservices
+    ports:
+      - 5000:5000
+    volumes:
+      - ./api_service:/service/api_service/
+
+networks:
+  microservices:

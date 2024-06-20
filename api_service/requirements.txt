@@ -1,0 +1,7 @@
+Flask
+Flask-Cors
+Flask-Session
+Flask-Blueprint
+Flask-Bcrypt
+python-dotenv
+werkzeug
