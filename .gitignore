@@ -1,5 +1,6 @@
 # Environment variables file
 .env
+firebase_secret.json
 
 # Virtual environment
 venv/
