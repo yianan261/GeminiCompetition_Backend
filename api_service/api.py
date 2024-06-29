@@ -6,12 +6,11 @@ from helpers import api_response
 from data_retriever import DataRetriever
 from werkzeug.utils import secure_filename
 
-UPLOAD_DIR = "uploads"
 ALLOWED_EXTENSIONS = {"csv"}
 
 api_blueprint = Blueprint("api_blueprint", __name__)
 
-data_retriever = DataRetriever(UPLOAD_DIR)
+data_retriever = DataRetriever()
 
 
 def allowed_file(filename):
@@ -36,46 +35,30 @@ def test_hello():
 
 
 @api_blueprint.route("/upload-takeout", methods=["POST"])
-def upload_csv():
-    if "file" not in request.files:
+def upload_takeout_csv():
+    if "files[]" not in request.files:
         return api_response(success=False, message="No file uploaded", status=400)
 
-    file = request.files["file"]
-    if file.filename == "":
-        return api_response(succes=False, message="No selected file", status=400)
+    files = request.files.getlist["files[]"]
+    if not files:
+        return api_response(succes=False, message="No selected files", status=400)
 
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = data_retriever.save_uploaded_file(file, filename)
-        return api_response(
-            success=True,
-            message="File uploaded successfully",
-            data={"file_path": file_path},
-            status=200,
-        )
-    else:
-        return api_response(success=False, message="File type not allowed", status=400)
+    valid_files = [file for file in files if file and allowed_file(file.filename)]
+    if not valid_files:
+        return api_response(success=False, message="No valid files", status=400)
 
+    # process valid files and save to db
+    try:
+        saved_places = data_retriever.get_saved_places(valid_files)
+        user_id = request.form.get("user_id")
+        if not user_id:
+            return api_response(success=False,message="User ID required", status=400)
+        data_retriever.save_to_firestore(user_id,saved_places)
+        return api_response(success=True, message="Files processed and data saved successfully", status=200)
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
 
 @api_blueprint.route("/get-user-data", methods=["POST"])
 def get_user_data():
     data = request.get_json()
-    file_path = data.get("file_path")
-    user_id = data.get("user_id")
 
-    if not file_path or not user_id:
-        return api_response(
-            success=False, message="File path and user ID are required.", status=400
-        )
-
-    try:
-        saved_places = data_retriever.get_saved_places(file_path)
-        data_retriever.save_to_firestore(user_id, saved_places)
-        return api_response(
-            success=True,
-            message="Data retrieved and saved successfully",
-            data={"saved_places": saved_places},
-            status=200,
-        )
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
