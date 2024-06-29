@@ -52,13 +52,31 @@ def upload_takeout_csv():
         saved_places = data_retriever.get_saved_places(valid_files)
         user_id = request.form.get("user_id")
         if not user_id:
-            return api_response(success=False,message="User ID required", status=400)
-        data_retriever.save_to_firestore(user_id,saved_places)
-        return api_response(success=True, message="Files processed and data saved successfully", status=200)
+            return api_response(success=False, message="User ID required", status=400)
+        data_retriever.save_to_firestore(user_id, saved_places)
+        return api_response(
+            success=True,
+            message="Files processed and data saved successfully",
+            status=200,
+        )
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
+
 
 @api_blueprint.route("/get-user-data", methods=["POST"])
 def get_user_data():
     data = request.get_json()
+    user_id = data.get("user_id")
 
+    if not user_id:
+        return api_response(success=False, message="User ID required", status=400)
+    try:
+        most_recent_data = data_retriever.get_most_recent_data(user_id)
+        return api_response(
+            success=True,
+            message="Most recent data retreived successfully",
+            data={"saved_places": most_recent_data},
+            status=200,
+        )
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)

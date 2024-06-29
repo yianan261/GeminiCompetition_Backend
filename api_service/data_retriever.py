@@ -3,6 +3,8 @@ from google.cloud import firestore
 from datetime import datetime
 from werkzeug.datastructures import FileStorage
 
+# TODO: might want to change this to accept zip file from google takeout to simplify user experience
+
 
 class DataRetriever:
 
@@ -10,14 +12,14 @@ class DataRetriever:
         self.db = firestore.Client()
 
     def get_saved_places(self, files: list[FileStorage]) -> list[dict]:
-        """Extracts saved places from multiple CSV files
+        """
+        Extracts saved places from multiple CSV files
 
         Args:
-        files (list): list of uploaded file objects
+            files (list[FileStorage]): list of uploaded file objects
 
         Returns:
-        list: list of dictionaries of information of saved places
-
+            list[dict]: list of dictionaries of information of saved places
         """
         saved_places = []
         for file in files:
@@ -39,8 +41,8 @@ class DataRetriever:
         """Saves the extracted saved places to Firestore database
 
         Args:
-        user_id (str): user id
-        saved_places (list): list of dictionaries of user saved places
+            user_id (str): user id
+            saved_places (list): list of dictionaries of user saved places
         """
         doc_ref = (
             self.db.collection("users").document(user_id).collection("saved_places")
@@ -53,7 +55,7 @@ class DataRetriever:
         """Removes existing saved places for user
 
         Args:
-        user_id (str): user id
+            user_id (str): user id
         """
         collection_ref = (
             self.db.collection("users").document(user_id).collection("saved_places")
@@ -65,10 +67,10 @@ class DataRetriever:
     def get_most_recent_data(self, user_id: str) -> list[dict]:
         """Returns list of most recent saved places
         Args:
-        user_id (str): user id
+            user_id (str): user id
 
         Returns:
-        list: list of dictionaries of most recent saved places
+            list: list of dictionaries of most recent saved places
         """
         collection_ref = (
             self.db.collection("users").document(user_id).collection("saved_places")
