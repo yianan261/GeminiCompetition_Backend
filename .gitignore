@@ -33,3 +33,7 @@ target/
 
 # pycache
 __pycache__
+
+# test key
+gem_key.json
+gemini_key.json
