@@ -1,20 +1,24 @@
 """Write all the APIs here"""
 
-import os
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, current_app
 from helpers import api_response
 from data_retriever import DataRetriever
-from werkzeug.utils import secure_filename
 
 ALLOWED_EXTENSIONS = {"csv"}
 
 api_blueprint = Blueprint("api_blueprint", __name__)
 
-data_retriever = DataRetriever()
+data_retriever = None
 
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def initialize_data_retriever(app):
+    global data_retriever
+    firestore_client = app.config["FIRESTORE"]
+    data_retriever = DataRetriever(firestore_client)
 
 
 @api_blueprint.route("/", methods=["GET"])
@@ -39,7 +43,7 @@ def upload_takeout_csv():
     if "files[]" not in request.files:
         return api_response(success=False, message="No file uploaded", status=400)
 
-    files = request.files.getlist["files[]"]
+    files = request.files.getlist("files[]")
     if not files:
         return api_response(succes=False, message="No selected files", status=400)
 

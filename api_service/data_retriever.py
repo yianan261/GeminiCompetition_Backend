@@ -8,8 +8,19 @@ from werkzeug.datastructures import FileStorage
 
 class DataRetriever:
 
-    def __init__(self):
-        self.db = firestore.Client()
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(DataRetriever, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    def __init__(self, db):
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+        # self.db = firestore.Client()
+        self.db = db
+        self._initialized = True
 
     def get_saved_places(self, files: list[FileStorage]) -> list[dict]:
         """

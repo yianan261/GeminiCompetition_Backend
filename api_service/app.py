@@ -3,20 +3,22 @@ import firebase_admin
 from flask import Flask
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
-from api import api_blueprint
+from api import api_blueprint, initialize_data_retriever
 from helpers import api_response
 from firebase_admin import credentials, firestore
+from data_retriever import DataRetriever
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000"])
-base_path = os.path.abspath(os.path.dirname(__file__))
+service_account_key_path = os.getenv("GEMINI_KEY")
+# base_path = os.path.abspath(os.path.dirname(__file__))
+# parent_path = os.path.abspath(os.path.join(base_path, os.pardir))
 
 ## Blueprint
 app.register_blueprint(api_blueprint, url_prefix="/api")
 
 # yian firebase test key
-# TODO: remove
-service_account_key_path = os.path.join(base_path, "gem_key.json")
+# service_account_key_path = os.path.join(parent_path, "gem_key.json")
 
 cred = credentials.Certificate(service_account_key_path)
 firebase_admin.initialize_app(cred)
@@ -28,6 +30,12 @@ else:
     firestore_client = firestore.client()
 
 app.config["FIRESTORE"] = firestore_client
+
+# DataRetriever singleton
+with app.app_context():
+    data_retriever = DataRetriever(firestore_client)
+    app.config["DATA_RETRIEVER"] = data_retriever
+    initialize_data_retriever(app)
 
 
 # Custom error handler for 400 Bad Request error
