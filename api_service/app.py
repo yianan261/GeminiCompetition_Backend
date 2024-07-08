@@ -3,39 +3,17 @@ import firebase_admin
 from flask import Flask
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
-from api import api_blueprint, initialize_data_retriever
+from api import api_blueprint
 from helpers import api_response
-from firebase_admin import credentials, firestore
 from data_retriever import DataRetriever
+from google.cloud import firestore
+
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000"])
-service_account_key_path = os.getenv("GEMINI_KEY")
-# base_path = os.path.abspath(os.path.dirname(__file__))
-# parent_path = os.path.abspath(os.path.join(base_path, os.pardir))
 
 ## Blueprint
 app.register_blueprint(api_blueprint, url_prefix="/api")
-
-# yian firebase test key
-# service_account_key_path = os.path.join(parent_path, "gem_key.json")
-
-cred = credentials.Certificate(service_account_key_path)
-firebase_admin.initialize_app(cred)
-
-# connect to firestore emulator for local test
-if os.getenv("FIRESTORE_EMULATOR_HOST"):
-    firestore_client = firestore.client(options={"projectId": "geminiapp-88748"})
-else:
-    firestore_client = firestore.client()
-
-app.config["FIRESTORE"] = firestore_client
-
-# DataRetriever singleton
-with app.app_context():
-    data_retriever = DataRetriever(firestore_client)
-    app.config["DATA_RETRIEVER"] = data_retriever
-    initialize_data_retriever(app)
 
 
 # Custom error handler for 400 Bad Request error
@@ -71,8 +49,6 @@ def handle_http_exception(error):
     print("http_error_handler", response)
     return api_response(success=False, status=error.code, message=error.description)
 
-
-### TODO: FIREBASE LOGIC GOES HERE @kasi
 
 print()
 PORT = os.getenv("PORT", "5000")

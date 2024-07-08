@@ -1,99 +1,82 @@
-import csv
+import os
 from google.cloud import firestore
-from datetime import datetime
-from werkzeug.datastructures import FileStorage
-
-# TODO: might want to change this to accept zip file from google takeout to simplify user experience
 
 
 class DataRetriever:
 
-    _instance = None
+    def __init__(self):
+        self.db = firestore.Client(database="gemini-trip")
 
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(DataRetriever, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
+    # Fetch all documents
+    def fetch_all_documents(self, collection_name: str):
+        # Reference to the collection
+        collection_ref = self.db.collection(collection_name)
 
-    def __init__(self, db):
-        if hasattr(self, "_initialized") and self._initialized:
-            return
-        # self.db = firestore.Client()
-        self.db = db
-        self._initialized = True
+        # Get all documents
+        docs = collection_ref.stream()
+        return list(map(lambda doc: doc.to_dict(), docs))
 
-    def get_saved_places(self, files: list[FileStorage]) -> list[dict]:
-        """
-        Extracts saved places from multiple CSV files
+    # Fetch the document by ID and collection name
+    def fetch_document_by_id(self, collection_name: str, document_id: str):
+        # Reference to the collection
+        collection_ref = self.db.collection(collection_name)
 
-        Args:
-            files (list[FileStorage]): list of uploaded file objects
+        # Fetch a specific document by ID
+        doc = collection_ref.document(document_id).get()
+        if doc.exists:
+            return doc.to_dict()
+        else:
+            return None
 
-        Returns:
-            list[dict]: list of dictionaries of information of saved places
-        """
-        saved_places = []
-        for file in files:
-            file.stream.seek(0)
-            reader = csv.DictReader(file.stream)
-            for row in reader:
-                saved_places.append(
-                    {
-                        "Title": row.get("Title"),
-                        "Note": row.get("Note"),
-                        "URL": row.get("URL"),
-                        "Comment": row.get("Comment"),
-                        "timestamp": datetime.now(),
-                    }
-                )
-        return saved_places
+    # Fetch the document by a specific field and value
+    def fetch_document_by_criteria(self, collection_name: str, field: str, value: str):
+        # Reference to the collection
+        collection_ref = self.db.collection(collection_name)
 
-    def save_to_firestore(self, user_id: str, saved_places: list[dict]):
-        """Saves the extracted saved places to Firestore database
+        # filter documents based on the field and value
+        query = collection_ref.where(field, "==", value)
 
-        Args:
-            user_id (str): user id
-            saved_places (list): list of dictionaries of user saved places
-        """
-        doc_ref = (
-            self.db.collection("users").document(user_id).collection("saved_places")
-        )
-        for place in saved_places:
-            doc_ref.add(place)
-        self.remove_old_data(user_id)
+        # Get all matching documents
+        docs = query.stream()
 
-    def remove_old_data(self, user_id: str):
-        """Removes existing saved places for user
+        return list(map(lambda doc: doc.to_dict(), docs))
 
-        Args:
-            user_id (str): user id
-        """
-        collection_ref = (
-            self.db.collection("users").document(user_id).collection("saved_places")
-        )
-        query_ref = collection_ref.stream()
-        for doc in query_ref:
+    # write to collection
+    def write_to_collection(self, collection_name: str, data: dict):
+        # Reference to the collection
+        collection_ref = self.db.collection(collection_name)
+
+        # Add a new document with auto-generated ID
+        doc_ref = collection_ref.add(data)
+        return str(doc_ref)
+
+    # write to collection with custom document id
+    def write_to_collection_with_id(
+        self, collection_name: str, document_id: str, data: dict
+    ):
+        # Reference to the collection
+        collection_ref = self.db.collection(collection_name)
+
+        # Set a specific document ID
+        doc_ref = collection_ref.document(document_id).set(data)
+        return str(doc_ref)
+
+    # Check if document ID is present in a collection
+    def check_document_id_present(self, collection_name: str, document_id: str):
+        # Reference to the collection
+        collection_ref = self.db.collection(collection_name)
+
+        # Fetch a specific document by ID
+        doc = collection_ref.document(document_id).get()
+        return doc.exists
+
+    # Delete the collection
+    def delete_collection(self, collection_name: str):
+        # Reference to the collection
+        collection_ref = self.db.collection(collection_name)
+
+        # Get all documents
+        docs = collection_ref.stream()
+        for doc in docs:
             doc.reference.delete()
-
-    def get_most_recent_data(self, user_id: str) -> list[dict]:
-        """Returns list of most recent saved places
-        Args:
-            user_id (str): user id
-
-        Returns:
-            list: list of dictionaries of most recent saved places
-        """
-        collection_ref = (
-            self.db.collection("users").document(user_id).collection("saved_places")
-        )
-        query_ref = (
-            collection_ref.order_by("timestamp", direction=firestore.Query.DESCENDING)
-            .limit(1)
-            .stream()
-        )
-        most_recent_data = []
-        # convert document to dict
-        for document in query_ref:
-            most_recent_data.append(document.to_dict())
-
-        return most_recent_data
+        return True

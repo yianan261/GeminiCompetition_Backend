@@ -9,9 +9,8 @@ WORKDIR /service/api_service
 
 COPY api_service/ /service/api_service
 
-ENV GEMINI_KEY="gemini_key.json"
-# Firebase service or firestore
-# ENV FIREBASE_SERVICE_URL=""
+ENV GOOGLE_APPLICATION_CREDENTIALS="gemini_key.json"
+
 
 ENV PORT=5000
 EXPOSE 5000
