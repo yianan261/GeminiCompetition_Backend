@@ -6,13 +6,32 @@ from api import api_blueprint
 from helpers import api_response
 from data_retriever import DataRetriever
 from google.cloud import firestore
-
+from firebase_admin import credentials, initialize_app
+from csv_uploader import CSVUploader
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000"])
 
-## Blueprint
+# Blueprint
 app.register_blueprint(api_blueprint, url_prefix="/api")
+
+google_credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+print(f"Using Google credentials from: {google_credentials_path}")
+
+try:
+    cred = credentials.Certificate(google_credentials_path)
+    initialize_app(cred, {"projectId": "gemini-trip"})
+    firestore_client = firestore.Client()
+    print("Firestore client initialized successfully.")
+except Exception as e:
+    print(f"Error initializing Firestore client: {e}")
+
+# Set up DataRetriever
+data_retriever = DataRetriever(firestore_client)
+app.config["DATA_RETRIEVER"] = data_retriever
+
+csv_uploader = CSVUploader(data_retriever)
+app.config["CSV_UPLOADER"] = csv_uploader
 
 
 # Custom error handler for 400 Bad Request error
@@ -50,7 +69,6 @@ def handle_http_exception(error):
 
 
 print()
-PORT = os.getenv("PORT", "5000")
 
 if __name__ == "__main__":
-    app.run(debug=True, port=int(PORT))
+    app.run(debug=True)

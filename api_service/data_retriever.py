@@ -4,8 +4,9 @@ from google.cloud import firestore
 
 class DataRetriever:
 
-    def __init__(self):
-        self.db = firestore.Client(database="gemini-trip")
+    def __init__(self, db):
+        # self.db = firestore.Client(database="gemini-trip")
+        self.db = db
 
     # Fetch all documents
     def fetch_all_documents(self, collection_name: str):
@@ -61,6 +62,36 @@ class DataRetriever:
         doc_ref = collection_ref.document(document_id).set(data)
         return str(doc_ref)
 
+    def write_multiple_to_collection(
+        self, collection_name: str, data: list[dict]
+    ) -> bool:
+        """
+        Writes multiple documents to a collection using batched writes
+
+        Args:
+            collection_name (str)
+            data (list[dict])
+
+        Returns:
+            bool: True if all documents written successfully
+        """
+        try:
+            collection_ref = self.db.collection(collection_name)
+            # 500 operations allowed at a time for Firestore batch writes
+            batches = [data[i : i + 500] for i in range(0, len(data), 500)]
+
+            for batch_data in batches:
+                batch = self.db.batch()
+                for item in batch_data:
+                    doc_ref = collection_ref.document()
+                    batch.set(doc_ref, item)
+                batch.commit()
+
+            return True
+        except Exception as e:
+            print(f"Error committing batch: {e}")
+            return False
+
     # Check if document ID is present in a collection
     def check_document_id_present(self, collection_name: str, document_id: str):
         # Reference to the collection
@@ -79,4 +110,20 @@ class DataRetriever:
         docs = collection_ref.stream()
         for doc in docs:
             doc.reference.delete()
+        return True
+
+    def delete_document_by_id(self, collection_name: str, document_id: str) -> bool:
+        """
+        Deletes specific document by ID
+
+        Args:
+            collection_name (str): Name of the collection where the document should be deleted
+            document_id (str): document ID
+
+        Returns:
+            bool: True if the document is deleted successfully, else False
+        """
+        collection_ref = self.db.collection(collection_name)
+        doc_ref = collection_ref.document(document_id)
+        doc_ref.delete()
         return True
