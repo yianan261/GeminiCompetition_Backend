@@ -1,5 +1,4 @@
 import os
-import firebase_admin
 from flask import Flask
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
@@ -70,7 +69,6 @@ def handle_http_exception(error):
 
 
 print()
-PORT = os.getenv("PORT", "5000")
 
 if __name__ == "__main__":
-    app.run(debug=True, port=int(PORT))
+    app.run(debug=True)

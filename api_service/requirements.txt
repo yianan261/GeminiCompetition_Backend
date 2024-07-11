@@ -6,4 +6,4 @@ Flask-Bcrypt
 python-dotenv
 werkzeug
 google-cloud-firestore
- 
+firebase_admin

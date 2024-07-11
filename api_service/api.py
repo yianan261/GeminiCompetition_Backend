@@ -14,6 +14,10 @@ def get_data_retriever():
     return current_app.config["DATA_RETRIEVER"]
 
 
+def get_csv_uploader():
+    return current_app.config["CSV_UPLOADER"]
+
+
 @api_blueprint.route("/", methods=["GET"])
 def healthcheck():
     return api_response(
@@ -62,7 +66,7 @@ def write_document():
     )
 
 
-# Users 
+# Users
 @api_blueprint.route("/users/<user_id>", methods=["GET"])
 def get_user(user_id):
     try:
@@ -86,16 +90,6 @@ def create_user():
 
 
 # Saved Places
-@api_blueprint.route("/saved-places", methods=["POST"])
-def save_place():
-    try:
-        data = request.get_json()
-        get_data_retriever().write_to_collection("saved_places", data)
-        return api_response(success=True, message="Place saved", data=data, status=201)
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
-
-
 @api_blueprint.route("/saved-places", methods=["GET"])
 def get_saved_places():
     try:
@@ -160,48 +154,33 @@ def delete_trip(trip_id):
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
+# TODO: change the user_id to get it from sessions
+@api_blueprint.route("/upload-csv", methods=["POST"])
+def upload_csv():
+    if "files[]" not in request.files:
+        return api_response(success=False, message="No file part", status=400)
 
-# Places
-@api_blueprint.route("/places", methods=["POST"])
-def create_place():
+    files = request.files.getlist("files[]")
+    if not files:
+        return api_response(success=False, message="No selected files", status=400)
+
+    #TODO: replace this with user_id from sessions
+    user_id = request.form.get("user_id")
+    if not user_id:
+        return api_response(success=False, message="User ID required", status=400)
+
+    # Use CSVUploader to save uploaded files
     try:
-        data = request.get_json()
-        place_id = data.get("place_id")
-        get_data_retriever().write_to_collection_with_id("places", place_id, data)
-        return api_response(
-            success=True, message="Place created", data=data, status=201
-        )
+        csv_uploader = get_csv_uploader()
+        success = csv_uploader.save_uploaded_files(files, user_id)
+        if success:
+            return api_response(
+                success=True, message="Files uploaded successfully", status=200
+            )
+        else:
+            return api_response(
+                success=False, message="Failed to upload files", status=500
+            )
     except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
-
-
-@api_blueprint.route("/places/<place_id>", methods=["GET"])
-def get_place(place_id):
-    try:
-        data = get_data_retriever().fetch_document_by_id("places", place_id)
-        return api_response(
-            success=True, message="Place retrieved", data=data, status=200
-        )
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
-
-
-@api_blueprint.route("/places/<place_id>", methods=["PUT"])
-def update_place(place_id):
-    try:
-        data = request.get_json()
-        get_data_retriever().write_to_collection_with_id("places", place_id, data)
-        return api_response(
-            success=True, message="Place updated", data=data, status=200
-        )
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
-
-
-@api_blueprint.route("/places/<place_id>", methods=["DELETE"])
-def delete_place(place_id):
-    try:
-        get_data_retriever().delete_document_by_id("places", place_id)
-        return api_response(success=True, message="Place deleted", status=200)
-    except Exception as e:
+        print(f"Error uploading files: {e}")
         return api_response(success=False, message=str(e), status=500)
