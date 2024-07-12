@@ -162,6 +162,7 @@ def delete_trip(trip_id):
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
+
 # TODO: change the user_id to get it from sessions
 @api_blueprint.route("/upload-csv", methods=["POST"])
 def upload_csv():
@@ -172,7 +173,7 @@ def upload_csv():
     if not files:
         return api_response(success=False, message="No selected files", status=400)
 
-    #TODO: replace this with user_id from sessions
+    # TODO: replace this with user_id from sessions
     user_id = request.form.get("user_id")
     if not user_id:
         return api_response(success=False, message="User ID required", status=400)
@@ -180,14 +181,16 @@ def upload_csv():
     # Use CSVUploader to save uploaded files
     try:
         csv_uploader = get_csv_uploader()
-        success = csv_uploader.save_uploaded_files(files, user_id)
+        success, message = csv_uploader.save_uploaded_files(files, user_id)
         if success:
             return api_response(
                 success=True, message="Files uploaded successfully", status=200
             )
         else:
             return api_response(
-                success=False, message="Failed to upload files", status=500
+                success=False,
+                message=f"Failed to upload files with message {message}",
+                status=500,
             )
     except Exception as e:
         print(f"Error uploading files: {e}")

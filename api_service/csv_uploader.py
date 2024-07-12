@@ -44,7 +44,7 @@ class CSVUploader:
             self.data_retriever.write_multiple_to_collection(
                 "saved_places", saved_places
             )
-            return True
+            return True, None
         except Exception as e:
             print(f"Error processing CSV files: {e}")
-            return False
+            return False, str(e)

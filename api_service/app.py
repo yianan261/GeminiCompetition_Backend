@@ -8,6 +8,7 @@ from data_retriever import DataRetriever
 from google.cloud import firestore
 from firebase_admin import credentials, initialize_app
 from csv_uploader import CSVUploader
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3000"])
@@ -15,16 +16,19 @@ CORS(app, origins=["http://localhost:3000"])
 # Blueprint
 app.register_blueprint(api_blueprint, url_prefix="/api")
 
+load_dotenv()
 google_credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 print(f"Using Google credentials from: {google_credentials_path}")
 
 try:
     cred = credentials.Certificate(google_credentials_path)
     initialize_app(cred, {"projectId": "gemini-trip"})
-    firestore_client = firestore.Client()
+    firestore_client = firestore.Client(database="gemini-trip")
     print("Firestore client initialized successfully.")
 except Exception as e:
     print(f"Error initializing Firestore client: {e}")
+
+print(f"Firestore project ID: {firestore_client.project}")
 
 # Set up DataRetriever
 data_retriever = DataRetriever(firestore_client)

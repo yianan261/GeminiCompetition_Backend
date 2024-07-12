@@ -75,22 +75,22 @@ class DataRetriever:
         Returns:
             bool: True if all documents written successfully
         """
-        try:
-            collection_ref = self.db.collection(collection_name)
-            # 500 operations allowed at a time for Firestore batch writes
-            batches = [data[i : i + 500] for i in range(0, len(data), 500)]
+        # try:
+        #     collection_ref = self.db.collection(collection_name)
+        #     # 500 operations allowed at a time for Firestore batch writes
+        #     batches = [data[i : i + 500] for i in range(0, len(data), 500)]
 
-            for batch_data in batches:
-                batch = self.db.batch()
-                for item in batch_data:
-                    doc_ref = collection_ref.document()
-                    batch.set(doc_ref, item)
-                batch.commit()
+        #     for batch_data in batches:
+        #         batch = self.db.batch()
+        #         for item in batch_data:
+        #             doc_ref = collection_ref.document()
+        #             batch.set(doc_ref, item)
+        #         batch.commit()
 
-            return True
-        except Exception as e:
-            print(f"Error committing batch: {e}")
-            return False
+        #     return True
+        # except Exception as e:
+        #     print(f"Error committing batch: {e}")
+        #     return False
 
     # Check if document ID is present in a collection
     def check_document_id_present(self, collection_name: str, document_id: str):
