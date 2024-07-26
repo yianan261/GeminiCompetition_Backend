@@ -22,8 +22,8 @@ print(f"Using Google credentials from: {google_credentials_path}")
 
 try:
     cred = credentials.Certificate(google_credentials_path)
-    initialize_app(cred, {"projectId": "gemini-trip"})
-    firestore_client = firestore.Client(database="gemini-trip")
+    initialize_app(cred, {"projectId": "wander-6ad0c"})
+    firestore_client = firestore.Client()
     print("Firestore client initialized successfully.")
 except Exception as e:
     print(f"Error initializing Firestore client: {e}")
