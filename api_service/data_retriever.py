@@ -57,9 +57,10 @@ class DataRetriever:
     ):
         # Reference to the collection
         collection_ref = self.db.collection(collection_name)
-
+        prev_data = self.fetch_document_by_id(collection_name, document_id)
+        prev_data.update(data)
         # Set a specific document ID
-        doc_ref = collection_ref.document(document_id).set(data)
+        doc_ref = collection_ref.document(document_id).set(prev_data)
         return str(doc_ref)
 
     def write_multiple_to_collection(

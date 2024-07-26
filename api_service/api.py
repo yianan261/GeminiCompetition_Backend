@@ -14,7 +14,7 @@ from maps import Maps
 load_dotenv()
 
 # Initialize DataRetriever and Maps instances
-data_retriever = DataRetriever()
+# data_retriever = DataRetriever()
 maps = Maps()
 
 # Create Blueprint
@@ -38,11 +38,13 @@ def healthcheck():
         status=200,
     )
 
+
 @api_blueprint.route("/test-hello-world", methods=["POST"])
 def test_hello():
     return api_response(
         success=True, message="successful", data={"hello": "world"}, status=200
     )
+
 
 # Fetch document by Collection and Document ID
 # Example: http://localhost:5000/api/fetch-document-by-id?document_id=1&collection_name=users
@@ -58,6 +60,7 @@ def fetch_doc_by_id():
     except Exception as e:
         print(f"Error fetching document by ID: {e}")
         return api_response(success=False, message=str(e), status=500)
+
 
 # Fetch document by Collection
 # Example: http://localhost:5000/api/fetch-all-documents?collection_name=users
@@ -93,6 +96,17 @@ def create_user():
         user_id = data.get("user_id")
         get_data_retriever().write_to_collection_with_id("users", user_id, data)
         return api_response(success=True, message="User created", data=data, status=201)
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
+
+
+@api_blueprint.route("/updateUser", methods=["POST"])
+def update_user():
+    try:
+        data = request.get_json()
+        user_id = request.args.get("user_id")
+        get_data_retriever().write_to_collection_with_id("users", user_id, data)
+        return api_response(success=True, message="User updated", data=data, status=200)
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
@@ -196,68 +210,71 @@ def upload_csv():
         print(f"Error uploading files: {e}")
         return api_response(success=False, message=str(e), status=500)
 
+
 # API to get nearby attractions
 @api_blueprint.route("/nearby-attractions", methods=["GET"])
 def get_nearby_attractions():
     data = request.get_json()
     user_location = data.get("location")  # e.g., "37.7749,-122.4194"
     radius = data.get("radius", 5000)  # default radius in meters
-    
+
     response = maps.get_nearby_attractions(user_location, radius)
-    
+
     if response.status_code == 200:
         return api_response(
-            success=True, 
-            message="Nearby attractions fetched successfully", 
-            data=response.json(), 
-            status=200
+            success=True,
+            message="Nearby attractions fetched successfully",
+            data=response.json(),
+            status=200,
         )
     else:
         return api_response(
-            success=False, 
-            message="Failed to fetch nearby attractions", 
-            status=response.status_code
+            success=False,
+            message="Failed to fetch nearby attractions",
+            status=response.status_code,
         )
+
 
 # API to get nearby restaurants
 @api_blueprint.route("/nearby-restaurants", methods=["GET"])
 def get_nearby_restaurants():
     user_location = request.args.get("location")  # e.g., "37.7749,-122.4194"
     radius = request.args.get("radius", 5000)  # default radius in meters
-    
+
     response = maps.get_nearby_restaurants(user_location, radius)
-    
+
     if response.status_code == 200:
         return api_response(
-            success=True, 
-            message="Nearby restaurants fetched successfully", 
-            data=response.json(), 
-            status=200
+            success=True,
+            message="Nearby restaurants fetched successfully",
+            data=response.json(),
+            status=200,
         )
     else:
         return api_response(
-            success=False, 
-            message="Failed to fetch nearby restaurants", 
-            status=response.status_code
+            success=False,
+            message="Failed to fetch nearby restaurants",
+            status=response.status_code,
         )
+
 
 # API to get place details
 @api_blueprint.route("/place-details", methods=["GET"])
 def get_place_details():
     place_id = request.args.get("place_id")
-    
+
     response = maps.get_place_details(place_id)
-    
+
     if response.status_code == 200:
         return api_response(
-            success=True, 
-            message="Place details fetched successfully", 
-            data=response.json(), 
-            status=200
+            success=True,
+            message="Place details fetched successfully",
+            data=response.json(),
+            status=200,
         )
     else:
         return api_response(
-            success=False, 
-            message="Failed to fetch place details", 
-            status=response.status_code
+            success=False,
+            message="Failed to fetch place details",
+            status=response.status_code,
         )
