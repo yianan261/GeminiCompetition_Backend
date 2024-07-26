@@ -127,3 +127,25 @@ class DataRetriever:
         doc_ref = collection_ref.document(document_id)
         doc_ref.delete()
         return True
+
+    def update_users_field(
+        self, user_id: str, fields: dict
+    ) -> bool:
+        """
+        Updates specific fields in users collection
+
+        Args:
+            user_id (str): user ID
+            fields (dict): The fields to update with their new values
+
+        Returns:
+            bool: True if the update was successful, else False
+        """
+        try:
+            collection_ref = self.db.collection("users")
+            doc_ref = collection_ref.document(user_id)
+            doc_ref.update(fields)
+            return True
+        except Exception as e:
+            print(f"Error updating document: {e}")
+            return False

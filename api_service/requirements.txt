@@ -8,3 +8,9 @@ werkzeug
 google-cloud-firestore
 requests
 firebase_admin
+oauthlib
+google-auth==2.30.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.1
+requests-oauthlib==2.0.0
+jsonschema 

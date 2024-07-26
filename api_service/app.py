@@ -11,7 +11,7 @@ from csv_uploader import CSVUploader
 from dotenv import load_dotenv
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000"])
+CORS(app, origins=["http://localhost:6000"])
 
 # Blueprint
 app.register_blueprint(api_blueprint, url_prefix="/api")

@@ -3,18 +3,16 @@
 import os
 import sys
 from dotenv import load_dotenv
-
-load_dotenv()
-from flask import Blueprint, request, current_app
+from flask import Blueprint, abort, redirect, request, current_app, session
 from helpers import api_response
-from data_retriever import DataRetriever
 from maps import Maps
+from schema.users import user_schema
+from jsonschema import validate, ValidationError
 
 # Load environment variables
 load_dotenv()
 
-# Initialize DataRetriever and Maps instances
-data_retriever = DataRetriever()
+# Initialize Maps instances
 maps = Maps()
 
 # Create Blueprint
@@ -38,11 +36,24 @@ def healthcheck():
         status=200,
     )
 
+
 @api_blueprint.route("/test-hello-world", methods=["POST"])
 def test_hello():
     return api_response(
         success=True, message="successful", data={"hello": "world"}, status=200
     )
+
+
+# TODO: may remove?
+def login_is_required(function):
+    def wrapper(*args, **kwargs):
+        if "google_id" not in session:
+            return abort(401)  # authorization required
+        else:
+            return function()
+
+    return wrapper
+
 
 # Fetch document by Collection and Document ID
 # Example: http://localhost:5000/api/fetch-document-by-id?document_id=1&collection_name=users
@@ -58,6 +69,7 @@ def fetch_doc_by_id():
     except Exception as e:
         print(f"Error fetching document by ID: {e}")
         return api_response(success=False, message=str(e), status=500)
+
 
 # Fetch document by Collection
 # Example: http://localhost:5000/api/fetch-all-documents?collection_name=users
@@ -88,16 +100,58 @@ def get_user(user_id):
 
 @api_blueprint.route("/users", methods=["POST"])
 def create_user():
+    data = request.get_json()
     try:
-        data = request.get_json()
-        user_id = data.get("user_id")
+        validate(instance=data, schema=user_schema)
+    except ValidationError as e:
+        return (
+            api_response(
+                {
+                    "success": False,
+                    "message": "Invalid create user data",
+                    "error": str(e),
+                }
+            ),
+            400,
+        )
+
+    user_id = data.get("user_id")
+    try:
         get_data_retriever().write_to_collection_with_id("users", user_id, data)
         return api_response(success=True, message="User created", data=data, status=201)
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
 
-# Saved Places
+@api_blueprint.route("/update-users", methods=["PUT"])
+def update_users():
+    data = request.get_json()
+
+    user_id = session.get("user_id")  # Assuming the user_id is stored in the session
+    if not user_id:
+        return api_response(success=False, message="User ID required", status=400)
+
+    fields = data.get("fields")
+    if not fields:
+        return api_response(
+            success=False, message="Fields to update required", status=400
+        )
+
+    try:
+        success = get_data_retriever().update_users_field(user_id, fields)
+        if success:
+            return api_response(
+                success=True, message="User fields updated successfully", status=200
+            )
+        else:
+            return api_response(
+                success=False, message="Failed to update user fields", status=500
+            )
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
+
+
+# Saved Places from Google Takeout
 @api_blueprint.route("/saved-places", methods=["GET"])
 def get_saved_places():
     try:
@@ -121,46 +175,47 @@ def delete_saved_place(place_id):
         return api_response(success=False, message=str(e), status=500)
 
 
+# TODO: remove this section (not doing trip app anymore)
 # Trips
-@api_blueprint.route("/trips", methods=["POST"])
-def create_trip():
-    try:
-        data = request.get_json()
-        trip_id = data.get("trip_id")
-        get_data_retriever().write_to_collection_with_id("trips", trip_id, data)
-        return api_response(success=True, message="Trip created", data=data, status=201)
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
+# @api_blueprint.route("/trips", methods=["POST"])
+# def create_trip():
+#     try:
+#         data = request.get_json()
+#         trip_id = data.get("trip_id")
+#         get_data_retriever().write_to_collection_with_id("trips", trip_id, data)
+#         return api_response(success=True, message="Trip created", data=data, status=201)
+#     except Exception as e:
+#         return api_response(success=False, message=str(e), status=500)
 
 
-@api_blueprint.route("/trips/<trip_id>", methods=["GET"])
-def get_trip(trip_id):
-    try:
-        data = get_data_retriever().fetch_document_by_id("trips", trip_id)
-        return api_response(
-            success=True, message="Trip retrieved", data=data, status=200
-        )
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
+# @api_blueprint.route("/trips/<trip_id>", methods=["GET"])
+# def get_trip(trip_id):
+#     try:
+#         data = get_data_retriever().fetch_document_by_id("trips", trip_id)
+#         return api_response(
+#             success=True, message="Trip retrieved", data=data, status=200
+#         )
+#     except Exception as e:
+#         return api_response(success=False, message=str(e), status=500)
 
 
-@api_blueprint.route("/trips/<trip_id>", methods=["PUT"])
-def update_trip(trip_id):
-    try:
-        data = request.get_json()
-        get_data_retriever().write_to_collection_with_id("trips", trip_id, data)
-        return api_response(success=True, message="Trip updated", data=data, status=200)
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
+# @api_blueprint.route("/trips/<trip_id>", methods=["PUT"])
+# def update_trip(trip_id):
+#     try:
+#         data = request.get_json()
+#         get_data_retriever().write_to_collection_with_id("trips", trip_id, data)
+#         return api_response(success=True, message="Trip updated", data=data, status=200)
+#     except Exception as e:
+#         return api_response(success=False, message=str(e), status=500)
 
 
-@api_blueprint.route("/trips/<trip_id>", methods=["DELETE"])
-def delete_trip(trip_id):
-    try:
-        get_data_retriever().delete_document_by_id("trips", trip_id)
-        return api_response(success=True, message="Trip deleted", status=200)
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
+# @api_blueprint.route("/trips/<trip_id>", methods=["DELETE"])
+# def delete_trip(trip_id):
+#     try:
+#         get_data_retriever().delete_document_by_id("trips", trip_id)
+#         return api_response(success=True, message="Trip deleted", status=200)
+#     except Exception as e:
+#         return api_response(success=False, message=str(e), status=500)
 
 
 # TODO: change the user_id to get it from sessions
@@ -174,6 +229,7 @@ def upload_csv():
         return api_response(success=False, message="No selected files", status=400)
 
     # TODO: replace this with user_id from sessions
+    # user_id = session.get("user_id")
     user_id = request.form.get("user_id")
     if not user_id:
         return api_response(success=False, message="User ID required", status=400)
@@ -196,68 +252,71 @@ def upload_csv():
         print(f"Error uploading files: {e}")
         return api_response(success=False, message=str(e), status=500)
 
+
 # API to get nearby attractions
 @api_blueprint.route("/nearby-attractions", methods=["GET"])
 def get_nearby_attractions():
     data = request.get_json()
     user_location = data.get("location")  # e.g., "37.7749,-122.4194"
     radius = data.get("radius", 5000)  # default radius in meters
-    
+
     response = maps.get_nearby_attractions(user_location, radius)
-    
+
     if response.status_code == 200:
         return api_response(
-            success=True, 
-            message="Nearby attractions fetched successfully", 
-            data=response.json(), 
-            status=200
+            success=True,
+            message="Nearby attractions fetched successfully",
+            data=response.json(),
+            status=200,
         )
     else:
         return api_response(
-            success=False, 
-            message="Failed to fetch nearby attractions", 
-            status=response.status_code
+            success=False,
+            message="Failed to fetch nearby attractions",
+            status=response.status_code,
         )
+
 
 # API to get nearby restaurants
 @api_blueprint.route("/nearby-restaurants", methods=["GET"])
 def get_nearby_restaurants():
     user_location = request.args.get("location")  # e.g., "37.7749,-122.4194"
     radius = request.args.get("radius", 5000)  # default radius in meters
-    
+
     response = maps.get_nearby_restaurants(user_location, radius)
-    
+
     if response.status_code == 200:
         return api_response(
-            success=True, 
-            message="Nearby restaurants fetched successfully", 
-            data=response.json(), 
-            status=200
+            success=True,
+            message="Nearby restaurants fetched successfully",
+            data=response.json(),
+            status=200,
         )
     else:
         return api_response(
-            success=False, 
-            message="Failed to fetch nearby restaurants", 
-            status=response.status_code
+            success=False,
+            message="Failed to fetch nearby restaurants",
+            status=response.status_code,
         )
+
 
 # API to get place details
 @api_blueprint.route("/place-details", methods=["GET"])
 def get_place_details():
     place_id = request.args.get("place_id")
-    
+
     response = maps.get_place_details(place_id)
-    
+
     if response.status_code == 200:
         return api_response(
-            success=True, 
-            message="Place details fetched successfully", 
-            data=response.json(), 
-            status=200
+            success=True,
+            message="Place details fetched successfully",
+            data=response.json(),
+            status=200,
         )
     else:
         return api_response(
-            success=False, 
-            message="Failed to fetch place details", 
-            status=response.status_code
+            success=False,
+            message="Failed to fetch place details",
+            status=response.status_code,
         )
