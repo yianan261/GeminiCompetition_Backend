@@ -8,6 +8,7 @@ from helpers import api_response
 from maps import Maps
 from schema.users import user_schema
 from jsonschema import validate, ValidationError
+from data_retriever import DataRetriever
 
 # Load environment variables
 load_dotenv()
@@ -104,49 +105,50 @@ def create_user():
     try:
         validate(instance=data, schema=user_schema)
     except ValidationError as e:
-        return (
-            api_response(
-                {
-                    "success": False,
-                    "message": "Invalid create user data",
-                    "error": str(e),
-                }
-            ),
-            400,
+        return api_response(
+            success=False, message="Invalid create user data", error=str(e), status=400
         )
 
-    user_id = data.get("user_id")
+    google_id = data.get("google_id")
+
     try:
-        get_data_retriever().write_to_collection_with_id("users", user_id, data)
-        return api_response(success=True, message="User created", data=data, status=201)
+        # Check if user with google_id already exists
+        existing_user = get_data_retriever().fetch_document_by_criteria(
+            "users", "google_id", google_id
+        )
+        if existing_user:
+            return api_response(
+                success=False,
+                message="User with this Google ID already exists",
+                status=409,
+            )
+
+        # Add the new user using google_id as document ID
+        new_user_id = get_data_retriever().write_to_collection_with_id(
+            "users", google_id, data
+        )
+        if new_user_id:
+            return api_response(
+                success=True,
+                message="User created",
+                data={"user_id": new_user_id},
+                status=201,
+            )
+        else:
+            return api_response(
+                success=False, message="Failed to create user", status=500
+            )
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
 
-@api_blueprint.route("/update-users", methods=["PUT"])
-def update_users():
-    data = request.get_json()
-
-    user_id = session.get("user_id")  # Assuming the user_id is stored in the session
-    if not user_id:
-        return api_response(success=False, message="User ID required", status=400)
-
-    fields = data.get("fields")
-    if not fields:
-        return api_response(
-            success=False, message="Fields to update required", status=400
-        )
-
+@api_blueprint.route("/updateUser", methods=["POST"])
+def update_user():
     try:
-        success = get_data_retriever().update_users_field(user_id, fields)
-        if success:
-            return api_response(
-                success=True, message="User fields updated successfully", status=200
-            )
-        else:
-            return api_response(
-                success=False, message="Failed to update user fields", status=500
-            )
+        data = request.get_json()
+        user_id = request.args.get("user_id")
+        get_data_retriever().write_to_collection_with_id("users", user_id, data)
+        return api_response(success=True, message="User updated", data=data, status=200)
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
