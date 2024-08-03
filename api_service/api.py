@@ -3,18 +3,28 @@
 import os
 import sys
 from dotenv import load_dotenv
-
-load_dotenv()
-from flask import Blueprint, request, current_app
+from flask import (
+    Blueprint,
+    abort,
+    redirect,
+    request,
+    current_app,
+    session,
+    jsonify,
+    url_for,
+)
 from helpers import api_response
-from data_retriever import DataRetriever
 from maps import Maps
+from schema.users import user_schema
+from jsonschema import validate, ValidationError
+from datetime import datetime, timezone
+import io
+from csv_uploader import CSVUploader
 
 # Load environment variables
 load_dotenv()
 
-# Initialize DataRetriever and Maps instances
-# data_retriever = DataRetriever()
+# Initialize Maps instances
 maps = Maps()
 
 # Create Blueprint
@@ -78,24 +88,59 @@ def write_document():
 
 
 # Users
-@api_blueprint.route("/users/<user_id>", methods=["GET"])
-def get_user(user_id):
+# Pass in email to get user data
+@api_blueprint.route("/users/<email>", methods=["GET"])
+def get_user(email):
     try:
-        data = get_data_retriever().fetch_document_by_id("users", user_id)
-        return api_response(
-            success=True, message="User retrieved", data=data, status=200
-        )
+        data = get_data_retriever().fetch_document_by_id("users", email)
+        if data:
+            return api_response(
+                success=True, message="User retrieved", data=data, status=200
+            )
+        else:
+            return api_response(success=False, message="User not found", status=404)
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
 
 @api_blueprint.route("/users", methods=["POST"])
 def create_user():
+    data = request.get_json()
     try:
-        data = request.get_json()
-        user_id = data.get("user_id")
-        get_data_retriever().write_to_collection_with_id("users", user_id, data)
-        return api_response(success=True, message="User created", data=data, status=201)
+        validate(instance=data, schema=user_schema)
+    except ValidationError as e:
+        return api_response(
+            success=False, message="Invalid create user data", error=str(e), status=400
+        )
+
+    email = data.get("email")
+
+    try:
+        existing_user = get_data_retriever().fetch_document_by_criteria(
+            "users", "email", email
+        )
+        if existing_user:
+            return api_response(
+                success=False,
+                message="User with this email already exists",
+                status=409,
+            )
+
+        # Add createdAt timestamp
+        data["createdAt"] = datetime.now(timezone.utc).isoformat()
+
+        result = get_data_retriever().write_to_collection_with_id("users", email, data)
+        if result:
+            return api_response(
+                success=True,
+                message="User created",
+                data={"email": email},
+                status=201,
+            )
+        else:
+            return api_response(
+                success=False, message="Failed to create user", status=500
+            )
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
@@ -104,20 +149,40 @@ def create_user():
 def update_user():
     try:
         data = request.get_json()
-        user_id = request.args.get("user_id")
-        get_data_retriever().write_to_collection_with_id("users", user_id, data)
-        return api_response(success=True, message="User updated", data=data, status=200)
+        email = data.get("email")
+        if not email:
+            return api_response(success=False, message="Email is required", status=400)
+
+        # Fetch the existing user document
+        existing_user = get_data_retriever().fetch_document_by_id("users", email)
+        if not existing_user:
+            return api_response(success=False, message="User not found", status=404)
+
+        # Merge the existing data with the new data
+        updated_data = {**existing_user, **data}
+
+        result = get_data_retriever().write_to_collection_with_id(
+            "users", email, updated_data
+        )
+        if result:
+            return api_response(
+                success=True, message="User updated", data=updated_data, status=200
+            )
+        else:
+            return api_response(
+                success=False, message="Failed to update user", status=500
+            )
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
 
-# Saved Places
+# Saved Places from Google Takeout
 @api_blueprint.route("/saved-places", methods=["GET"])
 def get_saved_places():
     try:
-        user_id = request.args.get("user_id")
+        user_email = request.args.get("email")
         data = get_data_retriever().fetch_document_by_criteria(
-            "saved_places", "user_id", user_id
+            "saved_places", "user_email", user_email
         )
         return api_response(
             success=True, message="Saved places retrieved", data=data, status=200
@@ -126,89 +191,37 @@ def get_saved_places():
         return api_response(success=False, message=str(e), status=500)
 
 
-@api_blueprint.route("/saved-places/<place_id>", methods=["DELETE"])
-def delete_saved_place(place_id):
-    try:
-        get_data_retriever().delete_document_by_id("saved_places", place_id)
-        return api_response(success=True, message="Place deleted", status=200)
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
+# users can either upload Google Takeout zip file or Google Takeout folder
+@api_blueprint.route("/process-takeout-files", methods=["POST"])
+def process_takout_files():
+    user_email = request.form.get("email")
+    if not user_email:
+        return api_response(success=False, message="User email is required", status=400)
 
+    uploaded_files = request.files.getlist("files[]")
+    if not uploaded_files:
+        return api_response(success=False, message="No files provided", status=400)
 
-# Trips
-@api_blueprint.route("/trips", methods=["POST"])
-def create_trip():
-    try:
-        data = request.get_json()
-        trip_id = data.get("trip_id")
-        get_data_retriever().write_to_collection_with_id("trips", trip_id, data)
-        return api_response(success=True, message="Trip created", data=data, status=201)
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
+    csv_uploader = get_csv_uploader()
 
-
-@api_blueprint.route("/trips/<trip_id>", methods=["GET"])
-def get_trip(trip_id):
-    try:
-        data = get_data_retriever().fetch_document_by_id("trips", trip_id)
-        return api_response(
-            success=True, message="Trip retrieved", data=data, status=200
-        )
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
-
-
-@api_blueprint.route("/trips/<trip_id>", methods=["PUT"])
-def update_trip(trip_id):
-    try:
-        data = request.get_json()
-        get_data_retriever().write_to_collection_with_id("trips", trip_id, data)
-        return api_response(success=True, message="Trip updated", data=data, status=200)
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
-
-
-@api_blueprint.route("/trips/<trip_id>", methods=["DELETE"])
-def delete_trip(trip_id):
-    try:
-        get_data_retriever().delete_document_by_id("trips", trip_id)
-        return api_response(success=True, message="Trip deleted", status=200)
-    except Exception as e:
-        return api_response(success=False, message=str(e), status=500)
-
-
-# TODO: change the user_id to get it from sessions
-@api_blueprint.route("/upload-csv", methods=["POST"])
-def upload_csv():
-    if "files[]" not in request.files:
-        return api_response(success=False, message="No file part", status=400)
-
-    files = request.files.getlist("files[]")
-    if not files:
-        return api_response(success=False, message="No selected files", status=400)
-
-    # TODO: replace this with user_id from sessions
-    user_id = request.form.get("user_id")
-    if not user_id:
-        return api_response(success=False, message="User ID required", status=400)
-
-    # Use CSVUploader to save uploaded files
-    try:
-        csv_uploader = get_csv_uploader()
-        success, message = csv_uploader.save_uploaded_files(files, user_id)
-        if success:
-            return api_response(
-                success=True, message="Files uploaded successfully", status=200
-            )
+    for file in uploaded_files:
+        if file.filename.endswith(".zip"):
+            file_stream = io.BytesIO(file.read())
+            success, message = csv_uploader.process_zip_file(file_stream, user_email)
         else:
+            folder_path = f"/tmp/{file.filename}"
+            file.save(folder_path)
+            success, message = csv_uploader.process_folder(folder_path, user_email)
+            os.remove(folder_path)
+
+        if not success:
             return api_response(
-                success=False,
-                message=f"Failed to upload files with message {message}",
-                status=500,
+                success=False, message=f"Failed to process files: {message}", status=500
             )
-    except Exception as e:
-        print(f"Error uploading files: {e}")
-        return api_response(success=False, message=str(e), status=500)
+
+    return api_response(
+        success=True, message="Files processed and saved successfully", status=200
+    )
 
 
 # API to get nearby attractions

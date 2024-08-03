@@ -12,7 +12,6 @@ COPY api_service/ /service/api_service
 ENV GOOGLE_APPLICATION_CREDENTIALS="gemini_key.json"
 ENV GOOGLE_MAPS_API_KEY="maps_key.json"
 
-
 ENV PORT=6000
 EXPOSE 6000
 ENV FLASK_APP=app.py
