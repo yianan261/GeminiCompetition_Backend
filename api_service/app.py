@@ -2,11 +2,12 @@ import os
 from flask import Flask
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
+import firebase_admin
+from firebase_admin import credentials, auth
 from api import api_blueprint
 from helpers import api_response
 from data_retriever import DataRetriever
 from google.cloud import firestore
-from firebase_admin import credentials, initialize_app
 from csv_uploader import CSVUploader
 from dotenv import load_dotenv
 
@@ -22,7 +23,7 @@ print(f"Using Google credentials from: {google_credentials_path}")
 
 try:
     cred = credentials.Certificate(google_credentials_path)
-    initialize_app(cred, {"projectId": "wander-6ad0c"})
+    firebase_admin.initialize_app(cred, {"projectId": "wander-6ad0c"})
     firestore_client = firestore.Client()
     print("Firestore client initialized successfully.")
 except Exception as e:
@@ -72,7 +73,15 @@ def handle_http_exception(error):
     return api_response(success=False, status=error.code, message=error.description)
 
 
-print()
+# Verify Firebase ID Token
+def verify_firebase_id_token(id_token):
+    try:
+        decoded_token = auth.verify_id_token(id_token)
+        return decoded_token
+    except Exception as e:
+        print(f"Error verifying Firebase ID token: {e}")
+        return None
+
 
 if __name__ == "__main__":
     app.run(debug=True)

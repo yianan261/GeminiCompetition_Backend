@@ -55,18 +55,6 @@ class DataRetriever:
             print(f"Error writing document to collection {collection_name}: {e}")
             return None
 
-    # # write to collection with custom document id
-    # def write_to_collection_with_id(
-    #     self, collection_name: str, document_id: str, data: dict
-    # ):
-    #     # Reference to the collection
-    #     collection_ref = self.db.collection(collection_name)
-    #     prev_data = self.fetch_document_by_id(collection_name, document_id)
-    #     prev_data.update(data)
-    #     # Set a specific document ID
-    #     doc_ref = collection_ref.document(document_id).set(prev_data)
-    #     return str(doc_ref)
-
     def write_to_collection_with_id(
         self, collection_name: str, document_id: str, data: dict
     ):
@@ -75,7 +63,7 @@ class DataRetriever:
 
         Args:
             collection_name (str): The name of the collection.
-            document_id (str): doc ID
+            document_id (str): doc ID (user email)
             data (dict): The data to write to the document.
 
         Returns:
