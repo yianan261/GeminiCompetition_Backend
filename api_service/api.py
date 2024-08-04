@@ -80,6 +80,7 @@ def write_document():
         status=200,
     )
 
+
 # Users
 # Pass in email to get user data
 @api_blueprint.route("/users/<email>", methods=["GET"])
@@ -212,9 +213,7 @@ def process_takout_files():
                 success=False, message=f"Failed to process files: {message}", status=500
             )
 
-    return api_response(
-        success=True, message="Files processed and saved successfully", status=200
-    )
+    return api_response(success=True, message=f"{message}", status=200)
 
 
 # API to get nearby attractions
@@ -285,7 +284,8 @@ def get_place_details():
             status=response.status_code,
         )
 
-#TODO: need to change user_interests to places that are visitable on the map and apply LLM filter for recommendations
+
+# TODO: need to change user_interests to places that are visitable on the map and apply LLM filter for recommendations
 @api_blueprint.route("/getPointOfInterest", methods=["GET"])
 def get_point_of_interest():
     data = request.get_json()
@@ -300,7 +300,7 @@ def get_point_of_interest():
         user_location = user_data.get(
             "location", "37.7749,-122.4194"
         )  # Default to San Francisco
-        #TODO: need to change this, because interests list may contain non-location items
+        # TODO: need to change this, because interests list may contain non-location items
         user_interests = user_data.get("interests", ["parks", "museums"])
 
         # Search for points of interest using Google Maps API
@@ -326,7 +326,8 @@ def get_point_of_interest():
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
-#TODO: might need to change the query to LLM generated function call?
+
+# TODO: might need to change the query to LLM generated function call?
 @api_blueprint.route("/searchPointOfInterest", methods=["POST"])
 def search_point_of_interest():
     data = request.get_json()
@@ -367,5 +368,74 @@ def search_point_of_interest():
                 message="Failed to search points of interest",
                 status=response.status_code,
             )
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
+
+
+# When a user clicks the "Save" button on the app. The app will mark that location in a "saved" bookmark
+@api_blueprint.route("/save-places-to-visit", methods=["POST"])
+def save_places_to_visit():
+    data = request.get_json()
+    user_email = data.get("email")
+    location = data.get("location")
+
+    if not user_email or not location:
+        return api_response(
+            success=False, message="Email and location are required", status=400
+        )
+
+    try:
+        # Fetch user data using email ID from the database
+        user_data = get_data_retriever().fetch_document_by_id("users", user_email)
+        if not user_data:
+            return api_response(success=False, message="User not found", status=404)
+
+        # Create bookmarked_places field if it does not exist
+        if "bookmarked_places" not in user_data:
+            user_data["bookmarked_places"] = {}
+
+        # Add the location to the bookmarked_places field
+        user_data["bookmarked_places"][location["name"]] = location
+
+        # Update the user's data in the database
+        result = get_data_retriever().write_to_collection_with_id(
+            "users", user_email, user_data
+        )
+        if result:
+            return api_response(
+                success=True, message="Place bookmarked successfully", status=200
+            )
+        else:
+            return api_response(
+                success=False, message="Failed to bookmark place", status=500
+            )
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
+
+
+@api_blueprint.route("/get-places-to-visit", methods=["GET"])
+def get_places_to_visit():
+    user_email = request.args.get("email")
+
+    if not user_email:
+        return api_response(success=False, message="Email is required", status=400)
+
+    try:
+        # Fetch user data from the database
+        user_data = get_data_retriever().fetch_document_by_id("users", user_email)
+        if not user_data:
+            return api_response(success=False, message="User not found", status=404)
+
+        # Retrieve bookmarked places
+        bookmarked_places = user_data.get("bookmarked_places", {})
+        bookmarked_places_list = [
+            {"location": key, **value} for key, value in bookmarked_places.items()
+        ]
+        return api_response(
+            success=True,
+            message="Bookmarked places retrieved",
+            data=bookmarked_places_list,
+            status=200,
+        )
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)

@@ -42,11 +42,13 @@ class CSVUploader:
             bool: True if the files were processed and saved successfully
         """
         try:
+            isFileExist = False
             with ZipFile(file_stream, "r") as zip_ref:
                 for file_name in zip_ref.namelist():
                     if file_name.startswith("Takeout/Saved/") and file_name.endswith(
                         ".csv"
                     ):
+                        isFileExist = True
                         with zip_ref.open(file_name) as csv_file:
                             reader = csv.DictReader(io.TextIOWrapper(csv_file, "utf-8"))
                             for row in reader:
@@ -64,7 +66,12 @@ class CSVUploader:
                                 self.data_retriever.write_to_collection(
                                     "saved_places", saved_place
                                 )
-            return True, None
+
+            return (
+                (True, "Files processed and saved successfully")
+                if isFileExist
+                else (True, "Saved places not found")
+            )
         except Exception as e:
             return False, str(e)
 
@@ -80,9 +87,11 @@ class CSVUploader:
             bool: True if the files were processed and saved successfully
         """
         try:
+            isFileExist = False
             for root, _, files in os.walk(folder_path):
                 for file_name in files:
                     if file_name.endswith(".csv"):
+                        isFileExist = True
                         with open(
                             os.path.join(root, file_name), "r", encoding="utf-8"
                         ) as csv_file:
@@ -102,6 +111,10 @@ class CSVUploader:
                                 self.data_retriever.write_to_collection(
                                     "saved_places", saved_place
                                 )
-            return True, None
+            return (
+                (True, "Files processed and saved successfully")
+                if isFileExist
+                else (True, "Saved places not found")
+            )
         except Exception as e:
             return False, str(e)
