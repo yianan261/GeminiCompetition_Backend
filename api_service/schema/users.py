@@ -24,7 +24,7 @@ user_schema = {
         "photoURL": {"type": "string"},
         "createdAt": {"type": "string", "format": "date-time"},
         "interests": {"type": "array", "items": {"type": "string"}},
-        "user_description": {"type": "string"},
+        "userDescription": {"type": "string"},
     },
     "required": [
         "email",

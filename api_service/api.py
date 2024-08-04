@@ -1,17 +1,11 @@
 """Write all the APIs here"""
 
 import os
-import sys
 from dotenv import load_dotenv
 from flask import (
     Blueprint,
-    abort,
-    redirect,
     request,
     current_app,
-    session,
-    jsonify,
-    url_for,
 )
 from helpers import api_response
 from maps import Maps
@@ -85,7 +79,6 @@ def write_document():
         data=get_data_retriever().write_to_collection(collection_name, data),
         status=200,
     )
-
 
 # Users
 # Pass in email to get user data
@@ -291,3 +284,88 @@ def get_place_details():
             message="Failed to fetch place details",
             status=response.status_code,
         )
+
+#TODO: need to change user_interests to places that are visitable on the map and apply LLM filter for recommendations
+@api_blueprint.route("/getPointOfInterest", methods=["GET"])
+def get_point_of_interest():
+    data = request.get_json()
+    user_email = data.get("email")
+
+    try:
+        # Fetch user data using email ID from the database
+        user_data = get_data_retriever().fetch_document_by_id("users", user_email)
+        if not user_data:
+            return api_response(success=False, message="User not found", status=404)
+
+        user_location = user_data.get(
+            "location", "37.7749,-122.4194"
+        )  # Default to San Francisco
+        #TODO: need to change this, because interests list may contain non-location items
+        user_interests = user_data.get("interests", ["parks", "museums"])
+
+        # Search for points of interest using Google Maps API
+        points_of_interest = []
+        for interest in user_interests:
+            response = maps.search_places_nearby(
+                user_location, interest, radius=50 * 1609
+            )  # 50 miles in meters
+            if response.status_code == 200:
+                points_of_interest.extend(response.json().get("results", []))
+
+        # Further filter results using LLM (mocked for this example)
+        filtered_points_of_interest = (
+            points_of_interest  # Apply actual LLM filtering here
+        )
+
+        return api_response(
+            success=True,
+            message="Points of interest retrieved",
+            data=filtered_points_of_interest,
+            status=200,
+        )
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
+
+#TODO: might need to change the query to LLM generated function call?
+@api_blueprint.route("/searchPointOfInterest", methods=["POST"])
+def search_point_of_interest():
+    data = request.get_json()
+    user_email = data.get("email")
+    query = data.get("query")
+
+    try:
+        # Fetch user data from the database
+        user_data = get_data_retriever().fetch_document_by_id("users", user_email)
+        if not user_data:
+            return api_response(success=False, message="User not found", status=404)
+
+        user_location = user_data.get(
+            "location", "37.7749,-122.4194"
+        )  # Default to San Francisco
+
+        # Search for points of interest using the user's query and Google Maps API
+        response = maps.search_places_nearby(
+            user_location, query, radius=50 * 1609
+        )  # 50 miles in meters
+        if response.status_code == 200:
+            points_of_interest = response.json().get("results", [])
+
+            # Further filter results using LLM (mocked for this example)
+            filtered_points_of_interest = (
+                points_of_interest  # Apply actual LLM filtering here
+            )
+
+            return api_response(
+                success=True,
+                message="Points of interest retrieved",
+                data=filtered_points_of_interest,
+                status=200,
+            )
+        else:
+            return api_response(
+                success=False,
+                message="Failed to search points of interest",
+                status=response.status_code,
+            )
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
