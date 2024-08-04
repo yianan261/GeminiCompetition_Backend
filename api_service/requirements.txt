@@ -8,3 +8,4 @@ werkzeug
 google-cloud-firestore
 requests
 firebase_admin
+jsonschema 
