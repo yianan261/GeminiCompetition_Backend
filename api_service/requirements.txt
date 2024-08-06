@@ -10,3 +10,4 @@ requests
 firebase_admin
 jsonschema 
 google-generativeai
+beautifulsoup4
