@@ -286,8 +286,8 @@ def get_place_details():
 
 
 # TODO: need to change user_interests to places that are visitable on the map and apply LLM filter for recommendations
-@api_blueprint.route("/getPointOfInterest", methods=["GET"])
-def get_point_of_interest():
+@api_blueprint.route("/get-points-of-interest", methods=["GET"])
+def get_points_of_interest():
     data = request.get_json()
     user_email = data.get("email")
 
@@ -306,9 +306,10 @@ def get_point_of_interest():
         # Search for points of interest using Google Maps API
         points_of_interest = []
         for interest in user_interests:
-            response = maps.search_places_nearby(
-                user_location, interest, radius=50 * 1609
-            )  # 50 miles in meters
+            response = maps.get_nearby_attractions("37.7749,-122.4194")
+            # response = maps.search_places_nearby(
+            #     user_location, interest, radius=50 * 1609
+            # )  # 50 miles in meters
             if response.status_code == 200:
                 points_of_interest.extend(response.json().get("results", []))
 
@@ -328,8 +329,8 @@ def get_point_of_interest():
 
 
 # TODO: might need to change the query to LLM generated function call?
-@api_blueprint.route("/searchPointOfInterest", methods=["POST"])
-def search_point_of_interest():
+@api_blueprint.route("/search-points-of-interest", methods=["POST"])
+def search_points_of_interest():
     data = request.get_json()
     user_email = data.get("email")
     query = data.get("query")
@@ -377,11 +378,15 @@ def search_point_of_interest():
 def save_places_to_visit():
     data = request.get_json()
     user_email = data.get("email")
-    location = data.get("location")
+    place_id = data.get("place_id", "")
+    address = data.get("address", "")
+    place_name = data.get("name", "")
 
-    if not user_email or not location:
+    if not user_email or not place_name:
         return api_response(
-            success=False, message="Email and location are required", status=400
+            success=False,
+            message="Email and place name are required",
+            status=400,
         )
 
     try:
@@ -394,8 +399,12 @@ def save_places_to_visit():
         if "bookmarked_places" not in user_data:
             user_data["bookmarked_places"] = {}
 
-        # Add the location to the bookmarked_places field
-        user_data["bookmarked_places"][location["name"]] = location
+        # Add the location to the bookmarked_places field using place name as the key
+        user_data["bookmarked_places"][place_name] = {
+            "place_id": place_id,
+            "address": address,
+            "name": place_name,
+        }
 
         # Update the user's data in the database
         result = get_data_retriever().write_to_collection_with_id(
@@ -413,8 +422,8 @@ def save_places_to_visit():
         return api_response(success=False, message=str(e), status=500)
 
 
-@api_blueprint.route("/get-places-to-visit", methods=["GET"])
-def get_places_to_visit():
+@api_blueprint.route("/get-bookmarked-places", methods=["GET"])
+def get_bookmarked_places():
     user_email = request.args.get("email")
 
     if not user_email:
@@ -428,9 +437,7 @@ def get_places_to_visit():
 
         # Retrieve bookmarked places
         bookmarked_places = user_data.get("bookmarked_places", {})
-        bookmarked_places_list = [
-            {"location": key, **value} for key, value in bookmarked_places.items()
-        ]
+        bookmarked_places_list = [value for key, value in bookmarked_places.items()]
         return api_response(
             success=True,
             message="Bookmarked places retrieved",
