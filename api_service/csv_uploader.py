@@ -112,9 +112,7 @@ class CSVUploader:
                         isFileExist = True
 
             for saved_place in results:
-                self.data_retriever.write_to_collection(
-                    "saved_places_test", saved_place
-                )
+                self.data_retriever.write_to_collection("saved_places", saved_place)
 
             return (
                 (True, "Files processed and saved successfully")
