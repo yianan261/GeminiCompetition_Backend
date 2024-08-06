@@ -14,12 +14,16 @@ from jsonschema import validate, ValidationError
 from datetime import datetime, timezone
 import io
 from csv_uploader import CSVUploader
+from llm_tools import LLMTools
 
 # Load environment variables
 load_dotenv()
 
 # Initialize Maps instances
 maps = Maps()
+
+# Initialize LLM Tools
+llm = LLMTools()
 
 # Create Blueprint
 api_blueprint = Blueprint("api_blueprint", __name__)
@@ -47,6 +51,13 @@ def healthcheck():
 def test_hello():
     return api_response(
         success=True, message="successful", data={"hello": "world"}, status=200
+    )
+
+@api_blueprint.route("/test-gemini", methods=["POST"])
+def test_gemini():
+    result = llm.test_api()
+    return api_response(
+        success=True, message="successful", data={"llm_result": result}, status=200
     )
 
 
