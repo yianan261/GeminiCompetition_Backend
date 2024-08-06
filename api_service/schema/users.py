@@ -25,6 +25,7 @@ user_schema = {
         "createdAt": {"type": "string", "format": "date-time"},
         "interests": {"type": "array", "items": {"type": "string"}},
         "userDescription": {"type": "string"},
+        "geminiDescription":{"type":"string"}
     },
     "required": [
         "email",
