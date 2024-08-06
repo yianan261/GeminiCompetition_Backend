@@ -10,7 +10,7 @@ class Maps:
         with open(os.getenv("GOOGLE_MAPS_API_KEY")) as f:
             self.MAPS_API_KEY = json.load(f)["api_key"]
 
-    # TODO: we need a custom function get_nearby_interests to pass in the interestfrom users dynamically
+    #TODO: we need a custom function get_nearby_interests to pass in the interest from users dynamically 
     def get_nearby_attractions(self, location, radius=None):
         if not radius:
             radius = 5000
