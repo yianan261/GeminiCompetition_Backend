@@ -1,6 +1,8 @@
 import os
 import json
 import requests
+from bs4 import BeautifulSoup
+
 
 class Maps:
     
@@ -32,3 +34,32 @@ class Maps:
 
         response = requests.get(url)
         return response
+
+    def get_place_id(self, url):
+        # Send a GET request to the URL
+        response = requests.get(url)
+
+        # Parse the HTML content using Beautiful Soup
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Find the meta tag with itemprop="name"
+        meta_tag = soup.find("meta", itemprop="name")
+
+        if meta_tag:
+            # Get the content attribute of the meta tag
+            place_name = meta_tag.get("content")
+        else:
+            return None
+
+        query_url = "https://maps.googleapis.com/maps/api/place/queryautocomplete/json"
+
+        # Query parameters
+        params = {"input": place_name, "types": "geocode", "key": {self.MAPS_API_KEY}}
+        # Send a GET request
+        response = requests.get(query_url, params=params)
+        predictions = response.json()["predictions"]
+        if predictions:
+            place_id = predictions[0]["place_id"]
+            return place_id
+        else:
+            return None

@@ -5,6 +5,11 @@ from datetime import datetime
 from data_retriever import DataRetriever
 from zipfile import ZipFile
 
+from maps import Maps
+
+# Initialize Maps instances
+maps = Maps()
+
 
 class CSVUploader:
 
@@ -55,6 +60,33 @@ class CSVUploader:
                                 title = row.get("Title")
                                 if self.check_duplicate(user_email, title):
                                     continue  # Skip duplicates
+                                place_id = maps.get_place_id(row.get("URL"))
+                                types = ""
+                                place_description = ""
+                                geo_location = ""
+
+                                if place_id:
+                                    res = maps.get_place_details(place_id).json()
+                                    if res["result"]:
+                                        res = res["result"]
+                                        place_description = res.get(
+                                            "editorial_summary", {}
+                                        ).get("overview", "")
+                                        types = res.get("types", "")
+                                        lat = str(
+                                            res.get("geometry", {})
+                                            .get("location", {})
+                                            .get("lat", "")
+                                        )
+                                        lng = str(
+                                            res.get("geometry", {})
+                                            .get("location", {})
+                                            .get("lng", "")
+                                        )
+                                        geo_location = lat + "," + lng
+                                else:
+                                    place_id = ""
+
                                 saved_place = {
                                     "user_email": user_email,
                                     "title": title,
@@ -62,6 +94,10 @@ class CSVUploader:
                                     "url": row.get("URL"),
                                     "comment": row.get("Comment"),
                                     "timestamp": datetime.now(),
+                                    "place_id": place_id,
+                                    "place_description": place_description,
+                                    "types": types,
+                                    "geo_location": geo_location,
                                 }
                                 self.data_retriever.write_to_collection(
                                     "saved_places", saved_place
