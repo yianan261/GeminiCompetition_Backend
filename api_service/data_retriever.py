@@ -50,7 +50,7 @@ class DataRetriever:
 
             # Add a new document with auto-generated ID
             doc_ref = collection_ref.add(data)
-            return doc_ref.id  # return generated doc ID
+            return doc_ref[1].id  # return generated doc ID
         except Exception as e:
             print(f"Error writing document to collection {collection_name}: {e}")
             return None
