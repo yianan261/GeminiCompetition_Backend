@@ -1,0 +1,18 @@
+FROM python
+
+RUN mkdir /service
+
+COPY api_service/requirements.txt .
+RUN python -m pip install -r requirements.txt
+
+WORKDIR /service/api_service
+
+COPY api_service/ /service/api_service
+
+ENV GOOGLE_APPLICATION_CREDENTIALS="gemini_key.json"
+ENV GOOGLE_KEY="google_key.json"
+
+ENV PORT=6000
+EXPOSE 6000
+ENV FLASK_APP=app.py
+ENTRYPOINT [ "flask", "run", "--host=0.0.0.0" , "--port=6000", "--debug"]

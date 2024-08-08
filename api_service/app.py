@@ -86,6 +86,6 @@ def verify_firebase_id_token(id_token):
         print(f"Error verifying Firebase ID token: {e}")
         return None
 
-
-if __name__ == "__main__":
-    app.run(debug=True)
+PORT = os.getenv("PORT", "6000")
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=int(PORT))

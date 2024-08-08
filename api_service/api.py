@@ -40,7 +40,7 @@ def get_csv_uploader():
 def get_llm_tools():
     return current_app.config["LLM_TOOLS"]
 
-@api_blueprint.route("/", methods=["GET"])
+@api_blueprint.route("/", methods=["POST"])
 def healthcheck():
     return api_response(
         success=True,
@@ -66,7 +66,7 @@ def test_gemini():
 
 # Fetch document by Collection and Document ID
 # Example: http://localhost:5000/api/fetch-document-by-id?document_id=1&collection_name=users
-@api_blueprint.route("/fetch-document-by-id", methods=["GET"])
+@api_blueprint.route("/fetch-document-by-id", methods=["POST"])
 def fetch_doc_by_id():
     document_id = request.args.get("document_id")
     collection_name = request.args.get("collection_name")
@@ -97,7 +97,7 @@ def write_document():
 
 # Users
 # Pass in email to get user data
-@api_blueprint.route("/users/<email>", methods=["GET"])
+@api_blueprint.route("/users/<email>", methods=["POST"])
 def get_user(email):
     try:
         data = get_data_retriever().fetch_document_by_id("users", email)
@@ -219,7 +219,7 @@ def generate_user_description():
 
 
 # Saved Places from Google Takeout
-@api_blueprint.route("/saved-places", methods=["GET"])
+@api_blueprint.route("/saved-places", methods=["POST"])
 def get_saved_places():
     try:
         user_email = request.args.get("email")
@@ -264,7 +264,7 @@ def process_takout_files():
 
 
 # API to get nearby attractions
-@api_blueprint.route("/nearby-attractions", methods=["GET"])
+@api_blueprint.route("/nearby-attractions", methods=["POST"])
 def get_nearby_attractions():
     data = request.get_json()
     user_location = data.get("location")  # e.g., "37.7749,-122.4194"
@@ -288,7 +288,7 @@ def get_nearby_attractions():
 
 
 # API to get nearby restaurants
-@api_blueprint.route("/nearby-restaurants", methods=["GET"])
+@api_blueprint.route("/nearby-restaurants", methods=["POST"])
 def get_nearby_restaurants():
     user_location = request.args.get("location")  # e.g., "37.7749,-122.4194"
     radius = request.args.get("radius", 5000)  # default radius in meters
@@ -311,7 +311,7 @@ def get_nearby_restaurants():
 
 
 # API to get place details
-@api_blueprint.route("/place-details", methods=["GET"])
+@api_blueprint.route("/place-details", methods=["POST"])
 def get_place_details():
     data = request.get_json()
     email = data.get("email")
@@ -337,7 +337,7 @@ def get_place_details():
 
 
 # TODO: need to change user_interests to places that are visitable on the map and apply LLM filter for recommendations
-@api_blueprint.route("/get-points-of-interest", methods=["GET"])
+@api_blueprint.route("/get-points-of-interest", methods=["POST"])
 def get_points_of_interest():
     data = request.get_json()
     user_email = data.get("email")
@@ -513,7 +513,7 @@ def remove_bookmarked_place():
         return api_response(success=False, message=str(e), status=500)
 
 
-@api_blueprint.route("/get-bookmarked-places", methods=["GET"])
+@api_blueprint.route("/get-bookmarked-places", methods=["POST"])
 def get_bookmarked_places():
     user_email = request.args.get("email")
 
