@@ -10,10 +10,7 @@ WORKDIR /service/api_service
 COPY api_service/ /service/api_service
 
 ENV GOOGLE_APPLICATION_CREDENTIALS="gemini_key.json"
-ENV GOOGLE_MAPS_API_KEY="maps_key.json"
-ENV GEMINI_API_KEY="AIzaSyC2q0_T6XhVcO1s9qDhuOYzJ1yyhn3euxg"
-ENV GOOGLE_CSE_ID="337cdf7db2695444c"
-ENV GOOGLE_API_KEY="AIzaSyBfw6L1DuggFx0JPSfTn2gACUl4PZUHkao"
+ENV GOOGLE_KEY="google_key.json"
 
 ENV PORT=6000
 EXPOSE 6000

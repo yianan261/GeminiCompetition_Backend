@@ -49,13 +49,14 @@ class LLMTools:
 
     def __init__(self, data_retriever: DataRetriever):
         self.data_retriever = data_retriever
-
-        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        with open(os.getenv("GOOGLE_KEY")) as f:
+            keys = json.load(f)
+            os.environ["GOOGLE_API_KEY"] = keys["GOOGLE_API_KEY"]
+            os.environ["GOOGLE_CSE_ID"] = keys["GOOGLE_CSE_ID"]
+            self.GEMINI_API_KEY = keys["GEMINI_API_KEY"]
+        genai.configure(api_key=self.GEMINI_API_KEY)
         self.model = genai.GenerativeModel(self.MODEL_ID)
-        
-        with open(os.getenv("GOOGLE_MAPS_API_KEY")) as f:
-            os.environ["GOOGLE_API_KEY"] = json.load(f)["api_key"]
-    
+
     def test_api(self):
         response = self.model.generate_content("Write a story about an AI")
         return response.text
@@ -443,13 +444,13 @@ class LLMTools:
 
             Here is the information that is available about the place: {json.dumps(relevant_place_data)}
             Here is the information that has been scraped from the website or google: {json.dumps(additional_info)}
-            The queries that have been use to generate the above results (empty if we haven't use Google Search): {json.dumps(tried_queries)}
+            The queries that have been used to generate the above results (empty if we haven't use Google Search): {json.dumps(tried_queries)}
 
             The available content is still not sufficient to generate interesting facts (or information if this place needs information) about {relevant_place_data['title']}. 
 
             You have now get access to use Google Search to further extract more information. Please provide a suitable query that should be used on Google search to gather sufficient data for generating the required information. The query should be comprehensive and designed to retrieve detailed information needed to generate interesting facts (or historical information if applicable) about {relevant_place_data['title']}.
             
-            Respond only with the query string for the Google Search. The query string is the human language that people usually type when doing Google Search.
+            Respond only with the query string for the Google Search. The query string is the human language that people usually type when doing Google Search. Do not generate the same queries that have been used as indicated above.
             """
         def _get_prompt_for_interesting_facts(additional_info, relevant_place_data, user_info):
             return f"""
@@ -514,11 +515,20 @@ class LLMTools:
             time.sleep(0.8)
             search_results = self._run_google_search(query_string)
             logger.info(f"process_place_details(): Search results: {search_results}")
+
+            # No good Google Search Result was found
+            if len(search_results) == 1:
+                break
+            
+            # Scrape content of each result
             for result in search_results:
                 if result["link"] in scrapped_urls:
                     continue
                 logger.info(f"process_place_details(): Scraping content from {result['link']}...")
-                result["content"] = self._scrape_website(url=result["link"])
+                cleaned_content = clean_text(self._scrape_website(url=result["link"]))
+                
+                # TODO: Might need to use vector database rather than heuristic first 500 tokens (firestore can do vector store??)
+                result["content"] = " ".join(cleaned_content.split()[:500])
                 logger.info(f"process_place_details(): Scraped content: {result['content']}")
             additional_info += search_results
             prompt_for_content_check = _get_prompt_for_content_check(additional_info=additional_info)
