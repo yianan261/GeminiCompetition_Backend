@@ -11,3 +11,6 @@ firebase_admin
 jsonschema 
 google-generativeai
 beautifulsoup4
+langchain_community
+langchain_google_community
+clean-text[gpl]
