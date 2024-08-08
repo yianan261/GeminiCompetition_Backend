@@ -9,6 +9,7 @@ from helpers import api_response
 from data_retriever import DataRetriever
 from google.cloud import firestore
 from csv_uploader import CSVUploader
+from llm_tools import LLMTools
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -37,6 +38,9 @@ app.config["DATA_RETRIEVER"] = data_retriever
 
 csv_uploader = CSVUploader(data_retriever)
 app.config["CSV_UPLOADER"] = csv_uploader
+
+llm = LLMTools(data_retriever)
+app.config["LLM_TOOLS"] = llm
 
 
 # Custom error handler for 400 Bad Request error

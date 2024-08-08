@@ -14,12 +14,16 @@ from jsonschema import validate, ValidationError
 from datetime import datetime, timezone
 import io
 from csv_uploader import CSVUploader
+from llm_tools import LLMTools
 
 # Load environment variables
 load_dotenv()
 
 # Initialize Maps instances
 maps = Maps()
+
+# Constants
+MILES_TO_METERS = 1609
 
 # Create Blueprint
 api_blueprint = Blueprint("api_blueprint", __name__)
@@ -32,6 +36,9 @@ def get_data_retriever():
 def get_csv_uploader():
     return current_app.config["CSV_UPLOADER"]
 
+
+def get_llm_tools():
+    return current_app.config["LLM_TOOLS"]
 
 @api_blueprint.route("/", methods=["GET"])
 def healthcheck():
@@ -47,6 +54,13 @@ def healthcheck():
 def test_hello():
     return api_response(
         success=True, message="successful", data={"hello": "world"}, status=200
+    )
+
+@api_blueprint.route("/test-gemini", methods=["POST"])
+def test_gemini():
+    result = get_llm_tools().test_api()
+    return api_response(
+        success=True, message="successful", data={"llm_result": result}, status=200
     )
 
 
@@ -170,6 +184,40 @@ def update_user():
         return api_response(success=False, message=str(e), status=500)
 
 
+@api_blueprint.route("/generateUserDescription", methods=["POST"])
+def generate_user_description():
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        if not email:
+            return api_response(success=False, message="Email is required", status=400)
+
+        # Fetch the existing user document
+        existing_user = get_data_retriever().fetch_document_by_id("users", email)
+        if not existing_user:
+            return api_response(success=False, message="User not found", status=404)
+
+        # Call LLM
+        gemini_description = get_llm_tools().generate_user_description(email=email)
+
+        # Merge the existing data with the new data
+        updated_data = {**existing_user, "geminiDescription": gemini_description}
+
+        result = get_data_retriever().write_to_collection_with_id(
+            "users", email, updated_data
+        )
+        if result:
+            return api_response(
+                success=True, message="Description generated and saved!", data={"geminiDescription": gemini_description}, status=200
+            )
+        else:
+            return api_response(
+                success=False, message="Failed to generate description", status=500
+            )
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
+
+
 # Saved Places from Google Takeout
 @api_blueprint.route("/saved-places", methods=["GET"])
 def get_saved_places():
@@ -212,7 +260,6 @@ def process_takout_files():
             return api_response(
                 success=False, message=f"Failed to process files: {message}", status=500
             )
-
     return api_response(success=True, message=f"{message}", status=200)
 
 
@@ -266,23 +313,27 @@ def get_nearby_restaurants():
 # API to get place details
 @api_blueprint.route("/place-details", methods=["GET"])
 def get_place_details():
-    place_id = request.args.get("place_id")
-
-    response = maps.get_place_details(place_id)
-
-    if response.status_code == 200:
+    data = request.get_json()
+    email = data.get("email")
+    place_id = data.get("placeId")
+    document_id = f"{place_id}--{email}"
+    latitude = data.get("latitude", "37.7749")
+    longitude = data.get("longitude", "-122.4194")
+    user_location = f"{latitude},{longitude}"
+    try:
+        place_data = get_data_retriever().fetch_document_by_id(collection_name="place_details", document_id=document_id)
+        if not place_data:
+            place_data = maps.get_place_details(place_id=place_id, origin=user_location)
+            place_data = get_llm_tools().process_place_details(email=email, place_data=place_data)
+            get_data_retriever().write_to_collection_with_id(collection_name="place_details", document_id=document_id, data={"email": email, **place_data})
         return api_response(
             success=True,
             message="Place details fetched successfully",
-            data=response.json(),
+            data=place_data,
             status=200,
         )
-    else:
-        return api_response(
-            success=False,
-            message="Failed to fetch place details",
-            status=response.status_code,
-        )
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
 
 
 # TODO: need to change user_interests to places that are visitable on the map and apply LLM filter for recommendations
@@ -290,38 +341,28 @@ def get_place_details():
 def get_points_of_interest():
     data = request.get_json()
     user_email = data.get("email")
+    latitude = data.get("latitude", "37.7749")
+    longitude = data.get("longitude", "-122.4194")
+    radius = data.get("radius", 25)
+    weather = data.get("weather", "sunny")
 
     try:
-        # Fetch user data using email ID from the database
         user_data = get_data_retriever().fetch_document_by_id("users", user_email)
         if not user_data:
             return api_response(success=False, message="User not found", status=404)
 
-        user_location = user_data.get(
-            "location", "37.7749,-122.4194"
-        )  # Default to San Francisco
-        # TODO: need to change this, because interests list may contain non-location items
-        user_interests = user_data.get("interests", ["parks", "museums"])
+        user_location = f"{latitude},{longitude}"
+        place_types = get_llm_tools().generate_place_types(email=user_email)
 
-        # Search for points of interest using Google Maps API
-        points_of_interest = []
-        for interest in user_interests:
-            response = maps.get_nearby_attractions("37.7749,-122.4194")
-            # response = maps.search_places_nearby(
-            #     user_location, interest, radius=50 * 1609
-            # )  # 50 miles in meters
-            if response.status_code == 200:
-                points_of_interest.extend(response.json().get("results", []))
-
-        # Further filter results using LLM (mocked for this example)
-        filtered_points_of_interest = (
-            points_of_interest  # Apply actual LLM filtering here
-        )
-
+        # Get places list
+        places_result = maps.get_nearby_places(location=user_location, radius=radius * MILES_TO_METERS, types=place_types)
+        
+        # Call LLM to filter
+        filtered_places = get_llm_tools().filter_relevant_places(email=user_email, places=places_result, weather=weather)
         return api_response(
             success=True,
             message="Points of interest retrieved",
-            data=filtered_points_of_interest,
+            data=filtered_places,
             status=200,
         )
     except Exception as e:
@@ -334,41 +375,33 @@ def search_points_of_interest():
     data = request.get_json()
     user_email = data.get("email")
     query = data.get("query")
+    latitude = data.get("latitude", "37.7749")
+    longitude = data.get("longitude", "-122.4194")
+    radius = data.get("radius", 25)
+    weather = data.get("weather", "sunny")
 
     try:
-        # Fetch user data from the database
         user_data = get_data_retriever().fetch_document_by_id("users", user_email)
         if not user_data:
             return api_response(success=False, message="User not found", status=404)
 
-        user_location = user_data.get(
-            "location", "37.7749,-122.4194"
-        )  # Default to San Francisco
-
-        # Search for points of interest using the user's query and Google Maps API
-        response = maps.search_places_nearby(
-            user_location, query, radius=50 * 1609
-        )  # 50 miles in meters
-        if response.status_code == 200:
-            points_of_interest = response.json().get("results", [])
-
-            # Further filter results using LLM (mocked for this example)
-            filtered_points_of_interest = (
-                points_of_interest  # Apply actual LLM filtering here
-            )
-
-            return api_response(
-                success=True,
-                message="Points of interest retrieved",
-                data=filtered_points_of_interest,
-                status=200,
-            )
+        query_info = get_llm_tools().parse_query_for_search(query)
+        user_location = f"{latitude},{longitude}"
+        
+        if query_info.get("use_text_search"):
+            places_result = maps.search_nearby_places(query=query_info["text_query"], location=user_location, radius=radius * MILES_TO_METERS)
         else:
-            return api_response(
-                success=False,
-                message="Failed to search points of interest",
-                status=response.status_code,
-            )
+            place_types = query_info.get("types", get_llm_tools().generate_place_types(email=user_email))
+            places_result = maps.get_nearby_places(location=user_location, radius=radius * MILES_TO_METERS, types=place_types)
+
+        # Call LLM to filter
+        filtered_places = get_llm_tools().filter_relevant_places_based_on_query(query=query, email=user_email, places=places_result, weather=weather)
+        return api_response(
+            success=True,
+            message="Points of interest retrieved",
+            data=filtered_places,
+            status=200,
+        )
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)
 
