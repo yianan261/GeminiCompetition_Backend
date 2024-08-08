@@ -415,10 +415,10 @@ def save_places_to_visit():
     address = data.get("address", "")
     place_name = data.get("name", "")
 
-    if not user_email or not place_name:
+    if not user_email or not (place_id or place_name):
         return api_response(
             success=False,
-            message="Email and place name are required",
+            message="Email and either place ID or place name are required",
             status=400,
         )
 
@@ -432,8 +432,11 @@ def save_places_to_visit():
         if "bookmarked_places" not in user_data:
             user_data["bookmarked_places"] = {}
 
-        # Add the location to the bookmarked_places field using place name as the key
-        user_data["bookmarked_places"][place_name] = {
+        # Use place_id if available, otherwise use place_name as key
+        key = place_id if place_id else place_name
+
+        # Add the location to the bookmarked_places field using the key
+        user_data["bookmarked_places"][key] = {
             "place_id": place_id,
             "address": address,
             "name": place_name,
@@ -450,6 +453,61 @@ def save_places_to_visit():
         else:
             return api_response(
                 success=False, message="Failed to bookmark place", status=500
+            )
+    except Exception as e:
+        return api_response(success=False, message=str(e), status=500)
+
+
+@api_blueprint.route("/remove-bookmarked-place", methods=["DELETE"])
+def remove_bookmarked_place():
+    data = request.get_json()
+    user_email = data.get("email")
+    place_id = data.get("place_id", "")
+    place_name = data.get("name", "")
+
+    if not user_email or not (place_id or place_name):
+        return api_response(
+            success=False,
+            message="Email and either place ID or place name are required",
+            status=400,
+        )
+
+    try:
+        # Fetch user data using email ID from the database
+        user_data = get_data_retriever().fetch_document_by_id("users", user_email)
+        if not user_data:
+            return api_response(success=False, message="User not found", status=404)
+
+        # Use place_id if available, otherwise use place_name as key
+        key = place_id if place_id else place_name
+
+        # Check if bookmarked_places field exists and the key is in it
+        if (
+            "bookmarked_places" not in user_data
+            or key not in user_data["bookmarked_places"]
+        ):
+            return api_response(
+                success=False, message="Bookmarked place not found", status=404
+            )
+
+        # Remove the location from the bookmarked_places field
+        del user_data["bookmarked_places"][key]
+
+        # Update the user's data in the database
+        result = get_data_retriever().write_to_collection_with_id(
+            "users", user_email, user_data
+        )
+        if result:
+            return api_response(
+                success=True,
+                message="Place removed from bookmarks successfully",
+                status=200,
+            )
+        else:
+            return api_response(
+                success=False,
+                message="Failed to remove place from bookmarks",
+                status=500,
             )
     except Exception as e:
         return api_response(success=False, message=str(e), status=500)

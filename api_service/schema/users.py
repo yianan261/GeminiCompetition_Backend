@@ -3,18 +3,6 @@ user_schema = {
     "properties": {
         "email": {"type": "string", "format": "email"},
         "uid": {"type": "string"},
-        "location": {
-            "type": "object",
-            "properties": {
-                "city": {"type": "string"},
-                "latitude": {"type": "number"},
-                "longitude": {"type": "number"},
-                "state": {"type": "string"},
-                "temperature": {"type": "number"},
-                "weather": {"type": "string"},
-            },
-            "additionalProperties": False,
-        },
         "displayName": {"type": "string"},
         "accessLocationAllowed": {"type": "boolean"},
         "notificationAllowed": {"type": "boolean"},
@@ -25,7 +13,7 @@ user_schema = {
         "createdAt": {"type": "string", "format": "date-time"},
         "interests": {"type": "array", "items": {"type": "string"}},
         "userDescription": {"type": "string"},
-        "geminiDescription":{"type":"string"}
+        "geminiDescription": {"type": "string"},
     },
     "required": [
         "email",
