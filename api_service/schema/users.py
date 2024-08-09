@@ -20,5 +20,5 @@ user_schema = {
         "displayName",
         "interests",
     ],
-    "additionalProperties": True,
+    "additionalProperties": False,
 }
