@@ -157,6 +157,11 @@ class LLMTools:
     def generate_user_description(self, email: str):
         # Visited places data
         user_info = self._get_relevant_user_info(email=email, limit=self.SAVED_PLACES_LIMIT, include_description=False)
+        user_visited_places = user_info.get("visited_places", "{}")
+        user_interests = user_info.get("interests", "{}")
+        user_description = user_info.get("userDescription", "")
+        if len(json.loads(user_interests).get("interests", [])) == 0 and len(json.loads(user_visited_places).get("visited_places", [])) == 0 and not user_description:
+            return "Hi, there is not enough information about you. Please add a brief description about your preferences below!"
 
         PROMPT = f"""
         You are an AI assistant for the places recommendation app. This app gives the user some place recommendations based on the user's preference.
@@ -168,18 +173,20 @@ class LLMTools:
         And as you might know, people go to restaurants a lot, while you can describe about the user's taste, you also need to be focus more on the other places that might interests users other than just restaurants.
         
         Here's the user's previously visited places in a JSON format (if available):
-        {user_info["visited_places"]}
+        {user_visited_places}
         
         You have to analyze the visited place above and notice which places that are relevant for the app and which one are not. The places that are relevant are like museum, park, restaurants, or other fun places. The places that are not relevant to our app are like the office, user's house, or the non-attraction places. From the visited places above, you have to get the idea of what the user's preferences are to be written as a story or description.
         
         Here's the user's interests in a JSON format (if available):
-        {user_info["interests"]}
+        {user_interests}
+
+        Here's the user's personal description about themselves (if empty, the user doesn't provide description): {user_description}
         
         For your reference, here is a list of possible type places. Feel free to use this in the story or description that you generated (you need to correct the spelling like changing _ to space though).
         
-        Lastly, if you can't get any information please say exactly this: "Hi, there is not enough information about you. Please add a brief description about your preferences below!"
+        Please add a brief description about your preferences below!"
 
-        Now, combining the visited places and interests, generate a short story or description about the user.
+        Now, combining the visited places and interests, generate a short story or description about the user. The answer must only be the short story or description about the user, don't give explanation or other thing. Despite the lack of user data and you can't think of any personalized description for the user, you still have to give generic description that applies to most users.
         """
         
         return self._call_llm(PROMPT)
