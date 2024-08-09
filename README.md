@@ -7,11 +7,7 @@ This repository contains the backend services for the Gemini Trip App (Update: n
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Setup and Installation](#setup-and-installation)
-- [Environment Variables](#environment-variables)
-- [API Documentation](#api-documentation)
 - [Running the Application](#running-the-application)
-- [Testing](#testing)
-- [Contributing](#contributing)
 
 ## Features
 
@@ -57,7 +53,7 @@ source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
 pip install -r requirements.txt
 ```
 
-### Running the app
+## Running the application
 
 To run the Flask app, simply just run `./runCompose.sh`. If this is the first time, run `chmod +x runCompose.sh`
 
