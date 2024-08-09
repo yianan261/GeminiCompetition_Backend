@@ -382,6 +382,7 @@ def search_points_of_interest():
 
     try:
         user_data = get_data_retriever().fetch_document_by_id("users", user_email)
+        print("User data:", user_data)
         if not user_data:
             return api_response(success=False, message="User not found", status=404)
 
@@ -416,6 +417,7 @@ def save_places_to_visit():
     photo_url = data.get("photo_url", [])
     distance = data.get("distance", [])
     bookmarked = data.get("bookmarked", True)
+    visited = data.get("visited", False)
 
     if not user_email or not (place_id or place_name):
         return api_response(
@@ -443,7 +445,8 @@ def save_places_to_visit():
             "title": place_name,
             "photo_url": photo_url,
             "distance": distance,
-            "bookmarked": bookmarked
+            "bookmarked": bookmarked,
+            "visited": visited
         }
 
         # Update the user's data in the database
