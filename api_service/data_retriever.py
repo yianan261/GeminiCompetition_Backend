@@ -5,39 +5,28 @@ from google.cloud import firestore
 class DataRetriever:
 
     def __init__(self, db):
-        # self.db = firestore.Client(database="gemini-trip")
         self.db = db
 
-    # Fetch all documents
     def fetch_all_documents(self, collection_name: str):
-        # Reference to the collection
         collection_ref = self.db.collection(collection_name)
 
-        # Get all documents
         docs = collection_ref.stream()
         return list(map(lambda doc: doc.to_dict(), docs))
 
-    # Fetch the document by ID and collection name
     def fetch_document_by_id(self, collection_name: str, document_id: str):
-        # Reference to the collection
         collection_ref = self.db.collection(collection_name)
 
-        # Fetch a specific document by ID
         doc = collection_ref.document(document_id).get()
         if doc.exists:
             return doc.to_dict()
         else:
             return None
 
-    # Fetch the document by a specific field and value
     def fetch_document_by_criteria(self, collection_name: str, field: str, value: str):
-        # Reference to the collection
         collection_ref = self.db.collection(collection_name)
 
-        # filter documents based on the field and value
         query = collection_ref.where(field, "==", value)
 
-        # Get all matching documents
         docs = query.stream()
 
         return list(map(lambda doc: doc.to_dict(), docs))
@@ -45,10 +34,8 @@ class DataRetriever:
     # write to collection
     def write_to_collection(self, collection_name: str, data: dict):
         try:
-            # Reference to the collection
             collection_ref = self.db.collection(collection_name)
 
-            # Add a new document with auto-generated ID
             doc_ref = collection_ref.add(data)
             return doc_ref[1].id  # return generated doc ID
         except Exception as e:
@@ -70,10 +57,9 @@ class DataRetriever:
             str: The document ID if the write was successful.
         """
         try:
-            # Reference to the collection
             collection_ref = self.db.collection(collection_name)
 
-            # Set a specific document ID
+            # Set specific document ID
             doc_ref = collection_ref.document(document_id)
             doc_ref.set(data)
             return document_id
@@ -94,38 +80,34 @@ class DataRetriever:
         Returns:
             bool: True if all documents written successfully
         """
-        # try:
-        #     collection_ref = self.db.collection(collection_name)
-        #     # 500 operations allowed at a time for Firestore batch writes
-        #     batches = [data[i : i + 500] for i in range(0, len(data), 500)]
+        try:
+            collection_ref = self.db.collection(collection_name)
+            # 500 operations allowed at a time for Firestore batch writes
+            batches = [data[i : i + 500] for i in range(0, len(data), 500)]
 
-        #     for batch_data in batches:
-        #         batch = self.db.batch()
-        #         for item in batch_data:
-        #             doc_ref = collection_ref.document()
-        #             batch.set(doc_ref, item)
-        #         batch.commit()
+            for batch_data in batches:
+                batch = self.db.batch()
+                for item in batch_data:
+                    doc_ref = collection_ref.document()
+                    batch.set(doc_ref, item)
+                batch.commit()
 
-        #     return True
-        # except Exception as e:
-        #     print(f"Error committing batch: {e}")
-        #     return False
+            return True
+        except Exception as e:
+            print(f"Error committing batch: {e}")
+            return False
 
-    # Check if document ID is present in a collection
+    # Checks if document ID is present in a collection
     def check_document_id_present(self, collection_name: str, document_id: str):
-        # Reference to the collection
         collection_ref = self.db.collection(collection_name)
 
-        # Fetch a specific document by ID
         doc = collection_ref.document(document_id).get()
         return doc.exists
 
-    # Delete the collection
+    # Deletes the collection
     def delete_collection(self, collection_name: str):
-        # Reference to the collection
         collection_ref = self.db.collection(collection_name)
 
-        # Get all documents
         docs = collection_ref.stream()
         for doc in docs:
             doc.reference.delete()

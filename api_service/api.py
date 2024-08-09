@@ -40,6 +40,7 @@ def get_csv_uploader():
 def get_llm_tools():
     return current_app.config["LLM_TOOLS"]
 
+
 @api_blueprint.route("/", methods=["POST"])
 def healthcheck():
     return api_response(
@@ -55,6 +56,7 @@ def test_hello():
     return api_response(
         success=True, message="successful", data={"hello": "world"}, status=200
     )
+
 
 @api_blueprint.route("/test-gemini", methods=["POST"])
 def test_gemini():
@@ -134,7 +136,6 @@ def create_user():
                 status=409,
             )
 
-        # Add createdAt timestamp
         data["createdAt"] = datetime.now(timezone.utc).isoformat()
 
         result = get_data_retriever().write_to_collection_with_id("users", email, data)
@@ -161,12 +162,10 @@ def update_user():
         if not email:
             return api_response(success=False, message="Email is required", status=400)
 
-        # Fetch the existing user document
         existing_user = get_data_retriever().fetch_document_by_id("users", email)
         if not existing_user:
             return api_response(success=False, message="User not found", status=404)
 
-        # Merge the existing data with the new data
         updated_data = {**existing_user, **data}
 
         result = get_data_retriever().write_to_collection_with_id(
@@ -192,15 +191,12 @@ def generate_user_description():
         if not email:
             return api_response(success=False, message="Email is required", status=400)
 
-        # Fetch the existing user document
         existing_user = get_data_retriever().fetch_document_by_id("users", email)
         if not existing_user:
             return api_response(success=False, message="User not found", status=404)
 
-        # Call LLM
         gemini_description = get_llm_tools().generate_user_description(email=email)
 
-        # Merge the existing data with the new data
         updated_data = {**existing_user, "geminiDescription": gemini_description}
 
         result = get_data_retriever().write_to_collection_with_id(
@@ -208,7 +204,10 @@ def generate_user_description():
         )
         if result:
             return api_response(
-                success=True, message="Description generated and saved!", data={"geminiDescription": gemini_description}, status=200
+                success=True,
+                message="Description generated and saved!",
+                data={"geminiDescription": gemini_description},
+                status=200,
             )
         else:
             return api_response(
@@ -321,11 +320,19 @@ def get_place_details():
     longitude = data.get("longitude", "-122.4194")
     user_location = f"{latitude},{longitude}"
     try:
-        place_data = get_data_retriever().fetch_document_by_id(collection_name="place_details", document_id=document_id)
+        place_data = get_data_retriever().fetch_document_by_id(
+            collection_name="place_details", document_id=document_id
+        )
         if not place_data:
             place_data = maps.get_place_details(place_id=place_id, origin=user_location)
-            place_data = get_llm_tools().process_place_details(email=email, place_data=place_data)
-            get_data_retriever().write_to_collection_with_id(collection_name="place_details", document_id=document_id, data={"email": email, **place_data})
+            place_data = get_llm_tools().process_place_details(
+                email=email, place_data=place_data
+            )
+            get_data_retriever().write_to_collection_with_id(
+                collection_name="place_details",
+                document_id=document_id,
+                data={"email": email, **place_data},
+            )
         return api_response(
             success=True,
             message="Place details fetched successfully",
@@ -336,7 +343,6 @@ def get_place_details():
         return api_response(success=False, message=str(e), status=500)
 
 
-# TODO: need to change user_interests to places that are visitable on the map and apply LLM filter for recommendations
 @api_blueprint.route("/get-points-of-interest", methods=["POST"])
 def get_points_of_interest():
     data = request.get_json()
@@ -355,10 +361,14 @@ def get_points_of_interest():
         place_types = get_llm_tools().generate_place_types(email=user_email)
 
         # Get places list
-        places_result = maps.get_nearby_places(location=user_location, radius=radius * MILES_TO_METERS, types=place_types)
-        
+        places_result = maps.get_nearby_places(
+            location=user_location, radius=radius * MILES_TO_METERS, types=place_types
+        )
+
         # Call LLM to filter
-        filtered_places = get_llm_tools().filter_relevant_places(email=user_email, places=places_result, weather=weather)
+        filtered_places = get_llm_tools().filter_relevant_places(
+            email=user_email, places=places_result, weather=weather
+        )
         return api_response(
             success=True,
             message="Points of interest retrieved",
@@ -369,7 +379,6 @@ def get_points_of_interest():
         return api_response(success=False, message=str(e), status=500)
 
 
-# TODO: might need to change the query to LLM generated function call?
 @api_blueprint.route("/search-points-of-interest", methods=["POST"])
 def search_points_of_interest():
     data = request.get_json()
@@ -388,15 +397,27 @@ def search_points_of_interest():
 
         query_info = get_llm_tools().parse_query_for_search(query)
         user_location = f"{latitude},{longitude}"
-        
+
         if query_info.get("use_text_search"):
-            places_result = maps.search_nearby_places(query=query_info["text_query"], location=user_location, radius=radius * MILES_TO_METERS)
+            places_result = maps.search_nearby_places(
+                query=query_info["text_query"],
+                location=user_location,
+                radius=radius * MILES_TO_METERS,
+            )
         else:
-            place_types = query_info.get("types", get_llm_tools().generate_place_types(email=user_email))
-            places_result = maps.get_nearby_places(location=user_location, radius=radius * MILES_TO_METERS, types=place_types)
+            place_types = query_info.get(
+                "types", get_llm_tools().generate_place_types(email=user_email)
+            )
+            places_result = maps.get_nearby_places(
+                location=user_location,
+                radius=radius * MILES_TO_METERS,
+                types=place_types,
+            )
 
         # Call LLM to filter
-        filtered_places = get_llm_tools().filter_relevant_places_based_on_query(query=query, email=user_email, places=places_result, weather=weather)
+        filtered_places = get_llm_tools().filter_relevant_places_based_on_query(
+            query=query, email=user_email, places=places_result, weather=weather
+        )
         return api_response(
             success=True,
             message="Points of interest retrieved",
@@ -427,29 +448,25 @@ def save_places_to_visit():
         )
 
     try:
-        # Fetch user data using email ID from the database
         user_data = get_data_retriever().fetch_document_by_id("users", user_email)
         if not user_data:
             return api_response(success=False, message="User not found", status=404)
 
-        # Create bookmarked_places field if it does not exist
         if "bookmarked_places" not in user_data:
             user_data["bookmarked_places"] = {}
 
         # Use place_id if available, otherwise use place_name as key
         key = place_id if place_id else place_name
 
-        # Add the location to the bookmarked_places field using the key
         user_data["bookmarked_places"][key] = {
             "place_id": place_id,
             "title": place_name,
             "photo_url": photo_url,
             "distance": distance,
             "bookmarked": bookmarked,
-            "visited": visited
+            "visited": visited,
         }
 
-        # Update the user's data in the database
         result = get_data_retriever().write_to_collection_with_id(
             "users", user_email, user_data
         )
@@ -480,15 +497,12 @@ def remove_bookmarked_place():
         )
 
     try:
-        # Fetch user data using email ID from the database
         user_data = get_data_retriever().fetch_document_by_id("users", user_email)
         if not user_data:
             return api_response(success=False, message="User not found", status=404)
 
-        # Use place_id if available, otherwise use place_name as key
         key = place_id if place_id else place_name
 
-        # Check if bookmarked_places field exists and the key is in it
         if (
             "bookmarked_places" not in user_data
             or key not in user_data["bookmarked_places"]
@@ -497,10 +511,8 @@ def remove_bookmarked_place():
                 success=False, message="Bookmarked place not found", status=404
             )
 
-        # Remove the location from the bookmarked_places field
         del user_data["bookmarked_places"][key]
 
-        # Update the user's data in the database
         result = get_data_retriever().write_to_collection_with_id(
             "users", user_email, user_data
         )
@@ -528,12 +540,10 @@ def get_bookmarked_places():
         return api_response(success=False, message="Email is required", status=400)
 
     try:
-        # Fetch user data from the database
         user_data = get_data_retriever().fetch_document_by_id("users", user_email)
         if not user_data:
             return api_response(success=False, message="User not found", status=404)
 
-        # Retrieve bookmarked places
         bookmarked_places = user_data.get("bookmarked_places", {})
         bookmarked_places_list = [value for key, value in bookmarked_places.items()]
         return api_response(
