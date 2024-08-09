@@ -412,8 +412,10 @@ def save_places_to_visit():
     data = request.get_json()
     user_email = data.get("email")
     place_id = data.get("place_id", "")
-    address = data.get("address", "")
-    place_name = data.get("name", "")
+    place_name = data.get("title", "")
+    photo_url = data.get("photo_url", [])
+    distance = data.get("distance", [])
+    bookmarked = data.get("bookmarked", True)
 
     if not user_email or not (place_id or place_name):
         return api_response(
@@ -438,8 +440,10 @@ def save_places_to_visit():
         # Add the location to the bookmarked_places field using the key
         user_data["bookmarked_places"][key] = {
             "place_id": place_id,
-            "address": address,
-            "name": place_name,
+            "title": place_name,
+            "photo_url": photo_url,
+            "distance": distance,
+            "bookmarked": bookmarked
         }
 
         # Update the user's data in the database
