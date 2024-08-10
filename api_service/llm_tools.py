@@ -480,7 +480,7 @@ class LLMTools:
             
             Now generate the interesting facts about the place. The interesting facts need to be very personalized to the user so different user needs to have different interesting facts about the place.
             
-            Generate one paragraph interesting facts only without any other explanation!
+            Generate one paragraph interesting facts only without any other explanation! The interesting facts need to be very personalized to show why the user will like the place! Be creative!
             """
         scrapped_urls = []
         logger.info("process_place_details() triggered")

@@ -1,6 +1,7 @@
 """Write all the APIs here"""
 
 import os
+import json
 from dotenv import load_dotenv
 from flask import (
     Blueprint,
@@ -24,6 +25,11 @@ maps = Maps()
 
 # Constants
 MILES_TO_METERS = 1609
+
+# Logging
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Create Blueprint
 api_blueprint = Blueprint("api_blueprint", __name__)
@@ -357,18 +363,20 @@ def get_points_of_interest():
         if not user_data:
             return api_response(success=False, message="User not found", status=404)
 
+        logger.info(f"User data: {json.dumps(user_data)}")
         user_location = f"{latitude},{longitude}"
         place_types = get_llm_tools().generate_place_types(email=user_email)
-
+        logger.info(f"User data: {json.dumps(place_types)}")
         # Get places list
         places_result = maps.get_nearby_places(
             location=user_location, radius=radius * MILES_TO_METERS, types=place_types
         )
-
+        logger.info(f"User data: {json.dumps(places_result)}")
         # Call LLM to filter
         filtered_places = get_llm_tools().filter_relevant_places(
             email=user_email, places=places_result, weather=weather
         )
+        logger.info(f"User data: {json.dumps(filtered_places)}")
         return api_response(
             success=True,
             message="Points of interest retrieved",
@@ -391,11 +399,11 @@ def search_points_of_interest():
 
     try:
         user_data = get_data_retriever().fetch_document_by_id("users", user_email)
-        print("User data:", user_data)
         if not user_data:
             return api_response(success=False, message="User not found", status=404)
-
+        logger.info(f"User data: {json.dumps(user_data)}")
         query_info = get_llm_tools().parse_query_for_search(query)
+        logger.info(f"Query info: {query_info}")
         user_location = f"{latitude},{longitude}"
 
         if query_info.get("use_text_search"):
@@ -404,15 +412,18 @@ def search_points_of_interest():
                 location=user_location,
                 radius=radius * MILES_TO_METERS,
             )
+            logger.info(f"Search result: {json.dumps(places_result)}")
         else:
             place_types = query_info.get(
                 "types", get_llm_tools().generate_place_types(email=user_email)
             )
+            logger.info(f"Place types result: {json.dumps(place_types)}")
             places_result = maps.get_nearby_places(
                 location=user_location,
                 radius=radius * MILES_TO_METERS,
                 types=place_types,
             )
+            logger.info(f"Nearby result: {json.dumps(places_result)}")
 
         # Call LLM to filter
         filtered_places = get_llm_tools().filter_relevant_places_based_on_query(

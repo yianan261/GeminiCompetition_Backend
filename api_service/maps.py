@@ -5,6 +5,10 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 class Maps:
 
     def __init__(self):
@@ -118,7 +122,7 @@ class Maps:
             },
             "pageSize": 20,
             "openNow": True,
-            "rankPreference": "RELEVANCE"
+            "rankPreference": "DISTANCE"
         }
 
     def _get_photo_url(self, photo_reference, max_width=400, max_height=400):
@@ -239,6 +243,7 @@ class Maps:
             response = requests.post(url, headers=headers, data=json.dumps(payload))
             if response.status_code == 200:
                 combined_results += response.json().get('places', [])
+                logger.info(f"Place chunks: {response.json().get('places', [])}")
             else:
                 print(f"Error fetching data: {response.status_code}, {response.text}")
                 return []
