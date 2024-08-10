@@ -228,11 +228,47 @@ class LLMTools:
             if len(filtered_place_types) > 0:
                 break
 
-        recommended_types_from_kelvin = ["tourist_attraction", "museum", "park"]
-        filtered_place_types += recommended_types_from_kelvin
-        filtered_place_types = list(set(filtered_place_types))
-
         return filtered_place_types
+
+    def generate_text_queries(self, email: str) -> list:
+        user_info = self._get_relevant_user_info(email=email, limit=self.SAVED_PLACES_LIMIT, include_description=True)
+
+        # Prepare the prompt
+        PROMPT = f"""
+        You are an AI assistant for a places recommendation app. This app gives the user some place recommendations based on the user's preferences.
+        
+        Here are the user's details:
+            User Description: {user_info["userDescription"]}
+            Gemini Description: {user_info["geminiDescription"]}
+            Interests: {user_info["interests"]}
+        
+        The following are some places the user has visited:
+        {user_info["visited_places"]}
+        
+        The app will utilizes Google Maps Places Text Search API to search of places given a string search input.
+        
+        Based on the user's description, gemini description, interests, and visited places, write a list of search text query that the app uses to be put in Google Maps Places Text Search API.
+
+        The texts must be written so the API result are the places that are relevant to the user's data, particularly focusing on user's interests. 
+        
+        You can also predict what text string query based on the places that the user has visited to give the relevant places to the user.
+        
+        Try to get what the user's interests are, for example if one of the user's interests is travel, don't give travel or travel agent text query, but give tourist place, or attraction place, or best attraction place. Don't take the user's interests as is, but try to really think of what the user's really want and write it as a text query for the text search API.
+
+        If you need to type in the city name, just put the word "nearby" or "near me" for example "rooftop bars near me", or "hidden gems nearby"
+
+        Return only the list of text queries (maximum 10) separated by commas without any other explanations.
+        
+        For example: vintage clothing store, farm, french restaurant, hiking places
+        
+        Do not provide explanations at all, just the answer seperated by commas.
+        """
+
+        # Call the LLM to generate the text queries
+        response = self._call_llm(PROMPT)
+        text_queries = [place_type.strip() for place_type in response.split(",") if place_type.strip()]
+
+        return text_queries
 
     def filter_relevant_places(self, email: str, places: list, weather: str) -> list:
         user_info = self._get_relevant_user_info(email=email, limit=self.SAVED_PLACES_LIMIT, include_description=True)

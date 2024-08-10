@@ -365,22 +365,22 @@ def get_points_of_interest():
 
         logger.info(f"User data: {json.dumps(user_data)}")
         user_location = f"{latitude},{longitude}"
-        place_types = get_llm_tools().generate_place_types(email=user_email)
-        logger.info(f"User data: {json.dumps(place_types)}")
+        text_queries = get_llm_tools().generate_text_queries(email=user_email)
+        logger.info(f"Place types data: {json.dumps(text_queries)}")
         # Get places list
         places_result = maps.get_nearby_places(
-            location=user_location, radius=radius * MILES_TO_METERS, types=place_types
+            location=user_location, radius=radius * MILES_TO_METERS, queries=text_queries
         )
-        logger.info(f"User data: {json.dumps(places_result)}")
+        logger.info(f"Places_result: {json.dumps([place["title"] for place in places_result])}")
         # Call LLM to filter
-        filtered_places = get_llm_tools().filter_relevant_places(
-            email=user_email, places=places_result, weather=weather
-        )
-        logger.info(f"User data: {json.dumps(filtered_places)}")
+        # filtered_places = get_llm_tools().filter_relevant_places(
+        #     email=user_email, places=places_result, weather=weather
+        # )
+        # logger.info(f"Relevant places: {json.dumps([place["title"] for place in places_result])}")
         return api_response(
             success=True,
             message="Points of interest retrieved",
-            data=filtered_places,
+            data=places_result,
             status=200,
         )
     except Exception as e:

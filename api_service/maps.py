@@ -4,6 +4,7 @@ import math
 import time
 import requests
 from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -108,7 +109,7 @@ class Maps:
             "rankPreference": "POPULARITY"
         }
 
-    def _construct_map_text_search_payload(self, query, location, radius=5000):
+    def _construct_map_text_search_payload(self, query, location, radius=5000, page_size=20):
         return {
             "textQuery": query,
             "locationBias": {
@@ -120,7 +121,7 @@ class Maps:
                     "radius": radius
                 }
             },
-            "pageSize": 20,
+            "pageSize": page_size,
             "openNow": True,
             "rankPreference": "DISTANCE"
         }
@@ -225,34 +226,72 @@ class Maps:
         }
         return place_info
 
-    def get_nearby_places(self, location, radius=5000, types=None):
-        if types is None:
-            types = ["tourist_attraction", "museum", "park"]
+    # def get_nearby_places(self, location, radius=5000, types=None):
+    #     if types is None:
+    #         types = ["tourist_attraction", "museum", "park"]
         
-        def split_into_chunks(lst, n):
-            for i in range(0, len(lst), n):
-                yield lst[i:i + n]
+    #     def split_into_chunks(lst, n):
+    #         for i in range(0, len(lst), n):
+    #             yield lst[i:i + n]
 
-        type_chunks = list(split_into_chunks(types, max(1, len(types) // 3)))
-        combined_results = []
+    #     type_chunks = list(split_into_chunks(types, max(1, len(types) // 3)))
+    #     combined_results = []
 
+    #     headers = self._construct_map_headers()
+    #     for type_chunk in type_chunks:
+    #         payload = self._construct_map_nearby_search_payload(types=type_chunk, location=location, radius=radius)
+    #         url = "https://places.googleapis.com/v1/places:searchNearby"
+    #         response = requests.post(url, headers=headers, data=json.dumps(payload))
+    #         if response.status_code == 200:
+    #             combined_results += response.json().get('places', [])
+    #             logger.info(f"Place chunks: {response.json().get('places', [])}")
+    #         else:
+    #             print(f"Error fetching data: {response.status_code}, {response.text}")
+    #             return []
+    #         time.sleep(0.5)
+
+    #     # Filter (open now)
+    #     combined_results = [place for place in combined_results if place.get("currentOpeningHours", {}).get("openNow", False)]
+    #     # Construct
+    #     combined_results = self._construct_places_data(combined_results, location)
+    #     return combined_results
+
+    def get_max_threads(self):
+        return int(os.cpu_count() * 1.5)
+
+    def _search_nearby_places_mini(self, query, location, radius=5000, num_searches=8):
         headers = self._construct_map_headers()
-        for type_chunk in type_chunks:
-            payload = self._construct_map_nearby_search_payload(types=type_chunk, location=location, radius=radius)
-            url = "https://places.googleapis.com/v1/places:searchNearby"
-            response = requests.post(url, headers=headers, data=json.dumps(payload))
-            if response.status_code == 200:
-                combined_results += response.json().get('places', [])
-                logger.info(f"Place chunks: {response.json().get('places', [])}")
-            else:
-                print(f"Error fetching data: {response.status_code}, {response.text}")
-                return []
+        payload = self._construct_map_text_search_payload(query=query, location=location, radius=radius, page_size=num_searches)
+        url = "https://places.googleapis.com/v1/places:searchText"
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        if response.status_code == 200:
+            results = response.json().get('places', [])
+        else:
+            print(f"Error fetching data: {response.status_code}, {response.text}")
+            results = []
+        return self._construct_places_data(results, location)
+
+    def get_nearby_places(self, location, radius=5000, queries=None):
+        if queries is None:
+            queries = ["tourist_attraction", "museum", "park"]
+        
+        combined_results = []
+        def distribute_sum(m, n):
+            base_value = m // n
+            remainder = m % n
+            result = [base_value] * n
+            for i in range(remainder):
+                result[i] += 1
+            
+            return result
+        num_searches = distribute_sum(12, len(queries))
+        for i in range(len(queries)):
+            result = self._search_nearby_places_mini(queries[i], location, radius, num_searches[i])
+            logger.info(f"\n\nSearch query: {queries[i]}")
+            logger.info(f"result: {json.dumps([r["title"] for r in result])}")
+            combined_results.extend(result)
             time.sleep(0.5)
 
-        # Filter (open now)
-        combined_results = [place for place in combined_results if place.get("currentOpeningHours", {}).get("openNow", False)]
-        # Construct
-        combined_results = self._construct_places_data(combined_results, location)
         return combined_results
 
     def search_nearby_places(self, query, location, radius=5000):
