@@ -274,7 +274,7 @@ class Maps:
         if queries is None:
             queries = ["tourist_attraction", "museum", "park"]
         
-        combined_results = []
+        combined_results = {}
         def distribute_sum(m, n):
             base_value = m // n
             remainder = m % n
@@ -288,10 +288,11 @@ class Maps:
             result = self._search_nearby_places_mini(queries[i], location, radius, num_searches[i])
             logger.info(f"\n\nSearch query: {queries[i]}")
             logger.info(f"result: {json.dumps([r["title"] for r in result])}")
-            combined_results.extend(result)
+            for r in result:
+                combined_results[r["place_id"]] = r
             time.sleep(0.5)
 
-        return combined_results
+        return list(combined_results.values())
 
     def search_nearby_places(self, query, location, radius=5000):
         headers = self._construct_map_headers()
