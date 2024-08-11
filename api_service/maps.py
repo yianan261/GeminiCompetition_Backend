@@ -16,9 +16,8 @@ class Maps:
         with open(os.getenv("GOOGLE_KEY")) as f:
             self.MAPS_API_KEY = json.load(f)["GOOGLE_API_KEY"]
 
-    #TODO: we need a custom function get_nearby_interests to pass in the interest from users dynamically 
     def get_nearby_attractions(self, location, radius=5000):
-        types = "park|restaurant|museum|tourist_attraction"  # this is hardcoded, need to change
+        types = "park|restaurant|museum|tourist_attraction"  
         url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={location}&radius={radius}&type={types}&key={self.MAPS_API_KEY}"
 
         response = requests.get(url)
