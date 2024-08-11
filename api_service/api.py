@@ -371,7 +371,8 @@ def get_points_of_interest():
         places_result = maps.get_nearby_places(
             location=user_location, radius=radius * MILES_TO_METERS, queries=text_queries
         )
-        logger.info(f"Places_result: {json.dumps([place["title"] for place in places_result])}")
+        places_result = sorted(places_result, key=lambda x: float(x["distance"]))
+        logger.info(f"Places_result: {json.dumps([place["distance"] for place in places_result])}")
         # Call LLM to filter
         # filtered_places = get_llm_tools().filter_relevant_places(
         #     email=user_email, places=places_result, weather=weather

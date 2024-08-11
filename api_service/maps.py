@@ -123,7 +123,7 @@ class Maps:
             },
             "pageSize": page_size,
             "openNow": True,
-            "rankPreference": "DISTANCE"
+            "rankPreference": "RELEVANCE"
         }
 
     def _get_photo_url(self, photo_reference, max_width=400, max_height=400):

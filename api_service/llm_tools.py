@@ -236,18 +236,15 @@ class LLMTools:
         # Prepare the prompt
         PROMPT = f"""
         You are an AI assistant for a places recommendation app. This app gives the user some place recommendations based on the user's preferences.
-        
+
         Here are the user's details:
             User Description: {user_info["userDescription"]}
             Gemini Description: {user_info["geminiDescription"]}
             Interests: {user_info["interests"]}
         
-        The following are some places the user has visited:
-        {user_info["visited_places"]}
-        
         The app will utilizes Google Maps Places Text Search API to search of places given a string search input.
         
-        Based on the user's description, gemini description, interests, and visited places, write a list of search text query that the app uses to be put in Google Maps Places Text Search API.
+        Based on the user's description, gemini description, and interests, write a list of search text query that the app uses to be put in Google Maps Places Text Search API.
 
         The texts must be written so the API result are the places that are relevant to the user's data, particularly focusing on user's interests. 
         
@@ -257,9 +254,11 @@ class LLMTools:
 
         If you need to type in the city name, just put the word "nearby" or "near me" for example "rooftop bars near me", or "hidden gems nearby"
 
-        Return only the list of text queries (maximum 10) separated by commas without any other explanations.
+        Return only the list of text queries separated by commas without any other explanations.
         
-        For example: vintage clothing store, farm, french restaurant, hiking places
+        Note that the text must not specify the location, use word like "nearby". The list needs to be sufficient, not too long and not too short, just enough for the google search text search to get relevant places according to the user's data and interests.
+        
+        For example: vintage clothing store, farm, french restaurant, hiking places near me
         
         Do not provide explanations at all, just the answer seperated by commas.
         """
