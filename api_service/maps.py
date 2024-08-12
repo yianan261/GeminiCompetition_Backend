@@ -156,10 +156,8 @@ class Maps:
                 return component.get("longText")
         return None
 
-    def _construct_places_data(self, places, origin):
+    def _construct_places_data(self, places, origin=None):
         constructed_data = []
-        origin_lat, origin_lng = map(float, origin.split(','))
-
         for place in places:
             photos = place.get("photos", [])
             photo_urls = [self._get_photo_url(photo.get("name")) for photo in photos]
@@ -170,11 +168,6 @@ class Maps:
                     "latitude": place.get("location", {}).get("latitude"),
                     "longitude": place.get("location", {}).get("longitude")
                 },
-                "distance": self._calculate_distance(
-                    origin_lat, origin_lng,
-                    place.get("location", {}).get("latitude"),
-                    place.get("location", {}).get("longitude")
-                ),
                 "address": place.get("formattedAddress", ""),
                 "photo_url": photo_urls,
                 "reviews": self._get_reviews(place.get("reviews", []), top_n=3),
@@ -186,12 +179,18 @@ class Maps:
                 "currentOpeningHours": place.get("currentOpeningHours", {}).get("weekdayDescriptions", []),
                 "wheelchairAccessible": any(list(place.get("accessibilityOptions", {}).values())),
             }
+            if origin:
+                origin_lat, origin_lng = map(float, origin.split(','))
+                place_info["distance"] = self._calculate_distance(
+                    origin_lat, origin_lng,
+                    place.get("location", {}).get("latitude"),
+                    place.get("location", {}).get("longitude")
+                )
             constructed_data.append(place_info)
 
         return constructed_data
 
-    def _construct_place_details_data(self, place, origin):
-        origin_lat, origin_lng = map(float, origin.split(','))
+    def _construct_place_details_data(self, place, origin=None):
         photos = place.get("photos", [])
         photo_urls = [self._get_photo_url(photo.get("name")) for photo in photos]
 
@@ -202,11 +201,6 @@ class Maps:
                 "latitude": place.get("location", {}).get("latitude"),
                 "longitude": place.get("location", {}).get("longitude")
             },
-            "distance": self._calculate_distance(
-                origin_lat, origin_lng,
-                place.get("location", {}).get("latitude"),
-                place.get("location", {}).get("longitude")
-            ),
             "address": place.get("formattedAddress", ""),
             "city": self._get_address_component(place, "locality"),
             "state": self._get_address_component(place, "administrative_area_level_1"),
@@ -226,6 +220,13 @@ class Maps:
             "plus_code": place.get("plusCode", {}).get("globalCode"),
             "website_uri": place.get("websiteUri")
         }
+        if origin:
+            origin_lat, origin_lng = map(float, origin.split(','))
+            place_info["distance"] = self._calculate_distance(
+                origin_lat, origin_lng,
+                place.get("location", {}).get("latitude"),
+                place.get("location", {}).get("longitude")
+            )
         return place_info
 
     # def get_nearby_places(self, location, radius=5000, types=None):
