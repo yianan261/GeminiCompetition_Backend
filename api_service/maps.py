@@ -87,7 +87,8 @@ class Maps:
                     'places.editorialSummary',
                     'places.primaryType',
                     'places.types',
-                    'places.websiteUri'
+                    'places.websiteUri',
+                    'places.accessibilityOptions'
                 ]
             )
         }
@@ -181,7 +182,8 @@ class Maps:
                 "editorial_summary": place.get("editorialSummary", {}).get("text", ""),
                 "primaryType": place.get("primaryType"),
                 "types": place.get("types", []),
-                "currentOpeningHours": place.get("currentOpeningHours", {}).get("weekdayDescriptions", [])
+                "currentOpeningHours": place.get("currentOpeningHours", {}).get("weekdayDescriptions", []),
+                "wheelchairAccessible": any(list(place.get("accessibilityOptions", {}).values())),
             }
             constructed_data.append(place_info)
 
