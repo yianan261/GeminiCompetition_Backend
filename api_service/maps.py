@@ -327,7 +327,7 @@ class Maps:
 
         return self._construct_places_data(combined_results, location)
 
-    def get_place_details(self, place_id: str, origin: str) -> dict:
+    def get_place_details(self, place_id, origin=None) -> dict:
         headers = self._construct_map_details_headers()
         url = f"https://places.googleapis.com/v1/places/{place_id}"
 
