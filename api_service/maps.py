@@ -64,7 +64,8 @@ class Maps:
                     'internationalPhoneNumber',
                     'nationalPhoneNumber',
                     'regularOpeningHours',
-                    'websiteUri'
+                    'websiteUri',
+                    'accessibilityOptions'
                 ]
             )
         }
