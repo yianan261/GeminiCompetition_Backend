@@ -525,6 +525,7 @@ class LLMTools:
         logger.info("Constructing relevant fields from place details data...")
         relevant_place_data = self._construct_relevant_fields_from_place_details_data(place_data=place_data)
         logger.info(f"process_place_details(): Relevant place data: {relevant_place_data}")
+        additional_info = []
         if "website_uri" in relevant_place_data and relevant_place_data.get("website_uri"):
             logger.info(f"process_place_details(): Scraping website content from {relevant_place_data.get('website_uri')}...")
             additional_info = [
